@@ -17,6 +17,7 @@ import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
@@ -52,10 +53,18 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
         final Inventory inventory = playerComponent.getInventory();
 
-        // Collect all weapons from hotbar and backpack
+        // Collect all weapons from hotbar, storage (main inventory), and backpack
         final List<WeaponInfo> weapons = new ArrayList<>();
         collectWeapons(inventory.getHotbar(), "Hotbar", weapons);
+        collectWeapons(inventory.getStorage(), "Storage", weapons);
         collectWeapons(inventory.getBackpack(), "Backpack", weapons);
+
+        // Sort: used items first (by level desc, then XP desc), unused items at bottom
+        weapons.sort(Comparator
+                .comparing((WeaponInfo w) -> w.isUnused)           // unused items last
+                .thenComparing((WeaponInfo w) -> w.level, Comparator.reverseOrder())  // highest level first
+                .thenComparing((WeaponInfo w) -> w.totalXp, Comparator.reverseOrder()) // highest XP first
+        );
 
         // Update item count
         uiCommandBuilder.set("#ItemCount.Text", weapons.size() + " items found");
@@ -69,10 +78,21 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
             // Set values using selector
             final String sel = "#ItemList[" + i + "]";
-            uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [Lv. " + weapon.level + "]");
-            uiCommandBuilder.set(sel + " #XpInfo.Text", weapon.xpText);
-            uiCommandBuilder.set(sel + " #Effects.Text", weapon.effectsText);
-            uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
+
+            if (weapon.isUnused) {
+                // Unused items: grey text, no XP/effects shown
+                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [unused]");
+                uiCommandBuilder.set(sel + " #ItemName.Style.TextColor", "#666666");
+                uiCommandBuilder.set(sel + " #XpInfo.Visible", false);
+                uiCommandBuilder.set(sel + " #Effects.Visible", false);
+                uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
+            } else {
+                // Active items: full display
+                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [Lv. " + weapon.level + "]");
+                uiCommandBuilder.set(sel + " #XpInfo.Text", weapon.xpText);
+                uiCommandBuilder.set(sel + " #Effects.Text", weapon.effectsText);
+                uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
+            }
         }
     }
 
@@ -107,18 +127,21 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     private class WeaponInfo {
         final String name;
         final int level;
+        final double totalXp;
         final String xpText;
         final String effectsText;
         final String locationText;
+        final boolean isUnused;
 
         WeaponInfo(ItemStack item, String containerName, int slot) {
             this.name = formatName(item.getItemId());
             this.level = itemExpService.getItemLevel(item);
+            this.totalXp = itemExpService.getItemXp(item);
+            this.isUnused = this.totalXp == 0;
 
-            final double totalXp = itemExpService.getItemXp(item);
             final double xpForCurrent = itemExpService.getXpRequiredForLevel(level);
             final double xpForNext = itemExpService.getXpRequiredForLevel(level + 1);
-            final double currentXp = totalXp - xpForCurrent;
+            final double currentXp = this.totalXp - xpForCurrent;
             final double xpNeeded = xpForNext - xpForCurrent;
             final double percent = xpNeeded > 0 ? (currentXp / xpNeeded) * 100 : 0;
 
@@ -127,7 +150,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             final String effects = itemExpService.getEffectsService().getEffectsSummary(item);
             this.effectsText = effects.isEmpty() ? "Effects: None" : "Effects: " + effects;
 
-            this.locationText = "Location: " + containerName + " slot " + (slot + 1);
+            this.locationText = containerName + " slot " + (slot + 1);
         }
     }
 
