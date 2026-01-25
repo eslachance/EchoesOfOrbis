@@ -48,9 +48,9 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
-        System.out.println("[EOO]: Weapon Effects System initialized with default effects:");
-        System.out.println("[EOO]:   - DAMAGE_PERCENT: +5% damage per weapon level");
-        System.out.println("[EOO]:   - DURABILITY_SAVE: 5% + 1%/level chance to save durability");
+        System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
+        System.out.println("[EOO]:   - DAMAGE_PERCENT: 5% -> 100% bonus damage");
+        System.out.println("[EOO]:   - DURABILITY_SAVE: 10% -> 100% save chance");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded, /eoo for UI"));

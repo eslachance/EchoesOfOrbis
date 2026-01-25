@@ -110,18 +110,29 @@ public class ItemExpService {
 
     /**
      * Get the total XP required to reach a specific level.
-     * Formula: levelBaseXP * (level ^ levelScaling)
+     * Formula: levelBaseXP * (level - 1)^levelScaling
+     * 
+     * This formula ensures:
+     * - Level 2 requires exactly baseXP (quick first level up!)
+     * - Each subsequent level requires significantly more XP
+     * - The curve is steeper at higher levels
      *
-     * Example with defaults (baseXP=100, scaling=1.5):
-     * Level 2: 100 * 2^1.5 = 283 XP
-     * Level 3: 100 * 3^1.5 = 520 XP
-     * Level 10: 100 * 10^1.5 = 3162 XP
+     * Example with defaults (baseXP=100, scaling=2.5):
+     * Level 2: 100 * 1^2.5 = 100 XP (fast!)
+     * Level 3: 100 * 2^2.5 = 566 XP
+     * Level 4: 100 * 3^2.5 = 1,558 XP
+     * Level 5: 100 * 4^2.5 = 3,200 XP
+     * Level 10: 100 * 9^2.5 = 24,300 XP
+     * 
+     * XP to advance (gaps):
+     * 1→2: 100 | 2→3: 466 | 3→4: 992 | 4→5: 1,642
      */
     public double getXpRequiredForLevel(final int level) {
         if (level <= 1) {
             return 0.0;
         }
-        return this.config.getLevelBaseXP() * Math.pow(level, this.config.getLevelScaling());
+        // Use (level - 1) so level 2 = baseXP * 1^scaling = baseXP
+        return this.config.getLevelBaseXP() * Math.pow(level - 1, this.config.getLevelScaling());
     }
 
     /**
@@ -192,6 +203,11 @@ public class ItemExpService {
 
         // Get level before adding XP
         final int levelBefore = this.getItemLevel(currentWeapon);
+        
+        // Skip XP gain if already at max level
+        if (levelBefore >= this.config.getMaxLevel()) {
+            return new LevelUpResult(true, levelBefore, levelBefore); // Success but no change
+        }
 
         // Create new item with added XP
         ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);

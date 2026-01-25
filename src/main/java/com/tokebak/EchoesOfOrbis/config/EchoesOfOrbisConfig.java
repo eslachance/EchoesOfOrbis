@@ -14,10 +14,12 @@ public class EchoesOfOrbisConfig {
     private double levelBaseXP = 100.0;
 
     // How much the XP requirement scales per level
-    // Formula: XP for level N = levelBaseXP * N^levelScaling
-    private double levelScaling = 1.5;
+    // Formula: XP for level N = levelBaseXP * (N-1)^levelScaling
+    // Higher values = steeper curve where high levels take much longer
+    // 2.0 = quadratic (gentle), 2.5 = steep but fair, 3.0 = very steep
+    private double levelScaling = 2.5;
 
-    private int maxLevel = 100;
+    private int maxLevel = 25;
 
     private boolean showXpNotifications = false;
     private double minXpForNotification = 1.0;

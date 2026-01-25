@@ -57,14 +57,15 @@ public class WeaponEffectsService {
      * Register the default effect definitions and processors.
      */
     private void registerDefaults() {
-        // DAMAGE_PERCENT: 5% bonus per weapon level
-        // At level 1: 5% bonus, at level 10: 50% bonus
+        // DAMAGE_PERCENT: Bonus damage scaling from 5% to 100% over levels 2-25
+        // Effect level 1 (weapon level 2): 5%
+        // Effect level 24 (weapon level 25): 100%
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_PERCENT)
-                        .baseValue(0.05)      // 5% at effect level 1
-                        .valuePerLevel(0.05)  // +5% per additional effect level
-                        .maxValue(1.0)        // Cap at 100% bonus
-                        .maxLevel(20)
+                        .baseValue(0.05)       // 5% at effect level 1
+                        .valuePerLevel(0.0413) // +4.13% per level to reach 100% at level 25
+                        .maxValue(1.0)         // Cap at 100% bonus
+                        .maxLevel(24)
                         .description("+{value} damage")
                         .build()
         );
@@ -94,13 +95,15 @@ public class WeaponEffectsService {
         );
         
         // DURABILITY_SAVE: Chance to not lose durability on hit
-        // 5% base chance at effect level 1, +1% per additional level, max 50%
+        // Scales from 10% to 100% over levels 2-25
+        // Effect level 1 (weapon level 2): 10%
+        // Effect level 24 (weapon level 25): 100%
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.DURABILITY_SAVE)
-                        .baseValue(0.05)      // 5% at effect level 1
-                        .valuePerLevel(0.01)  // +1% per additional level
-                        .maxValue(0.50)       // Cap at 50%
-                        .maxLevel(45)
+                        .baseValue(0.10)       // 10% at effect level 1
+                        .valuePerLevel(0.0391) // +3.91% per level to reach 100% at level 25
+                        .maxValue(1.0)         // Cap at 100%
+                        .maxLevel(24)
                         .description("{value} chance to save durability")
                         .build()
         );
