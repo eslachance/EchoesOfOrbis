@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -18,6 +19,7 @@ import javax.annotation.Nullable;
  * - Read/write XP to item metadata
  * - Calculate levels from XP
  * - Update items in inventory
+ * - Coordinate with WeaponEffectsService for level-up bonuses
  */
 public class ItemExpService {
 
@@ -26,9 +28,22 @@ public class ItemExpService {
     public static final String META_KEY_LEVEL = "ItemExp_Level";
 
     private final EchoesOfOrbisConfig config;
+    private final WeaponEffectsService effectsService;
 
-    public ItemExpService(@Nonnull final EchoesOfOrbisConfig config) {
+    public ItemExpService(
+            @Nonnull final EchoesOfOrbisConfig config,
+            @Nonnull final WeaponEffectsService effectsService
+    ) {
         this.config = config;
+        this.effectsService = effectsService;
+    }
+    
+    /**
+     * Get the effects service for external use.
+     */
+    @Nonnull
+    public WeaponEffectsService getEffectsService() {
+        return this.effectsService;
     }
 
     /**
@@ -131,16 +146,33 @@ public class ItemExpService {
         // withMetadata creates a new ItemStack with the updated metadata
         return item.withMetadata(META_KEY_XP, Codec.DOUBLE, newXp);
     }
+    
+    /**
+     * Update a weapon's effects based on its current level.
+     * Called after XP is added and a level-up occurs.
+     * 
+     * @param weapon The weapon to update
+     * @param newLevel The weapon's new level
+     * @return New ItemStack with updated effects
+     */
+    @Nonnull
+    public ItemStack updateWeaponEffects(@Nonnull final ItemStack weapon, final int newLevel) {
+        // Update the DAMAGE_PERCENT effect to match weapon level
+        // This gives +5% damage per level (configured in WeaponEffectsService)
+        return this.effectsService.updateDamagePercentEffect(weapon, newLevel);
+    }
 
     /**
      * Add XP to the player's currently held weapon and update it in their inventory.
+     * Also updates weapon effects on level up.
      *
      * @param playerRef The player reference
      * @param inventory The player's inventory
      * @param xpToAdd Amount of XP to add
-     * @return true if XP was successfully added, false if no valid weapon or failed
+     * @return The LevelUpResult with before/after levels and success status
      */
-    public boolean addXpToHeldWeapon(
+    @Nonnull
+    public LevelUpResult addXpToHeldWeapon(
             @Nonnull final PlayerRef playerRef,
             @Nonnull final Inventory inventory,
             final double xpToAdd
@@ -148,29 +180,75 @@ public class ItemExpService {
         // Get the currently held item
         final ItemStack currentWeapon = inventory.getActiveHotbarItem();
         if (currentWeapon == null) {
-            return false; // Nothing in hand
+            return LevelUpResult.failure(); // Nothing in hand
         }
 
         // Get the slot index so we can replace the item
         final byte slot = inventory.getActiveHotbarSlot();
         if (slot == -1) {
-            return false; // Invalid slot
+            return LevelUpResult.failure(); // Invalid slot
         }
 
-        // Get levels before and after for comparison
+        // Get level before adding XP
         final int levelBefore = this.getItemLevel(currentWeapon);
 
         // Create new item with added XP
-        final ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
+        ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
 
+        // Calculate new level
         final int levelAfter = this.getItemLevel(updatedWeapon);
+
+        // If weapon leveled up, update its effects
+        if (levelAfter > levelBefore) {
+            updatedWeapon = this.updateWeaponEffects(updatedWeapon, levelAfter);
+            System.out.println(String.format(
+                    "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s",
+                    levelBefore,
+                    levelAfter,
+                    this.effectsService.getEffectsSummary(updatedWeapon)
+            ));
+        }
 
         // Replace the item in the hotbar
         final ItemContainer hotbar = inventory.getHotbar();
         hotbar.setItemStackForSlot((short) slot, updatedWeapon);
 
-        // Return true and indicate if level changed (caller can use this for notifications)
-        return true;
+        return new LevelUpResult(true, levelBefore, levelAfter);
+    }
+    
+    /**
+     * Result of adding XP to a weapon, including level change info.
+     */
+    public static class LevelUpResult {
+        private final boolean success;
+        private final int levelBefore;
+        private final int levelAfter;
+        
+        public LevelUpResult(final boolean success, final int levelBefore, final int levelAfter) {
+            this.success = success;
+            this.levelBefore = levelBefore;
+            this.levelAfter = levelAfter;
+        }
+        
+        public static LevelUpResult failure() {
+            return new LevelUpResult(false, 0, 0);
+        }
+        
+        public boolean isSuccess() {
+            return this.success;
+        }
+        
+        public int getLevelBefore() {
+            return this.levelBefore;
+        }
+        
+        public int getLevelAfter() {
+            return this.levelAfter;
+        }
+        
+        public boolean didLevelUp() {
+            return this.success && this.levelAfter > this.levelBefore;
+        }
     }
 
     /**

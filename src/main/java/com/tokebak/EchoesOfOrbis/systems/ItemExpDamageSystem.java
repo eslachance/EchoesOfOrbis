@@ -14,15 +14,20 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * System that listens for damage events and awards XP to the attacking player's weapon.
+ * System that listens for damage events and:
+ * 1. Applies weapon effects (bonus damage, etc.) for leveled weapons
+ * 2. Awards XP to the attacking player's weapon
  *
  * This extends DamageEventSystem which is called whenever damage is dealt.
- * We check if the attacker is a player, then add XP to their held weapon.
+ * We check if the attacker is a player, then process their weapon's effects and XP.
  */
 public class ItemExpDamageSystem extends DamageEventSystem {
 
@@ -30,7 +35,6 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     private final EchoesOfOrbisConfig config;
 
     public ItemExpDamageSystem(
-
             @Nonnull final ItemExpService itemExpService,
             @Nonnull final EchoesOfOrbisConfig config
     ) {
@@ -55,12 +59,16 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         if (damage.isCancelled() || damage.getAmount() <= 0) {
             return;
         }
+        
+        // Skip bonus damage from weapon effects (prevents infinite recursion)
+        if (DamagePercentProcessor.isBonusDamage(damage)) {
+            return;
+        }
 
         // Get the damage source - we only care about entity sources (players/mobs)
         final Damage.Source source = damage.getSource();
 
         // Pattern matching: check if source is an EntitySource
-        // This is Java 17+ syntax - instanceof + cast in one step
         if (!(source instanceof final Damage.EntitySource entitySource)) {
             return; // Not entity damage (fall damage, fire, etc.)
         }
@@ -68,6 +76,12 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Get the attacker's entity reference
         final Ref<EntityStore> attackerRef = (Ref<EntityStore>) entitySource.getRef();
         if (attackerRef == null || !attackerRef.isValid()) {
+            return;
+        }
+        
+        // Get the target entity reference (the one being damaged)
+        final Ref<EntityStore> targetRef = archetypeChunk.getReferenceTo(index);
+        if (targetRef == null || !targetRef.isValid()) {
             return;
         }
 
@@ -100,8 +114,27 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         if (weapon == null || !this.itemExpService.canGainXp(weapon)) {
             return; // No weapon or weapon can't gain XP
         }
-
-        // Calculate XP to award based on damage dealt
+        
+        // Get weapon level for effects
+        final int weaponLevel = this.itemExpService.getItemLevel(weapon);
+        
+        // ==================== APPLY WEAPON EFFECTS ====================
+        // Apply effects BEFORE awarding XP (bonus damage, life leech, etc.)
+        if (weaponLevel > 1) {
+            this.applyWeaponEffects(
+                    damage,
+                    targetRef,
+                    attackerRef,
+                    playerRef,
+                    weapon,
+                    weaponLevel,
+                    store,
+                    commandBuffer
+            );
+        }
+        
+        // ==================== AWARD XP ====================
+        // Calculate XP to award based on original damage dealt
         final float damageDealt = damage.getAmount();
         final double xpGained = this.itemExpService.calculateXpFromDamage(damageDealt);
 
@@ -109,35 +142,33 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
 
-        // Get state before update for level-up detection
-        final int levelBefore = this.itemExpService.getItemLevel(weapon);
-
-        // Add XP to the weapon
-        final boolean success = this.itemExpService.addXpToHeldWeapon(
+        // Add XP to the weapon (this also updates effects on level up)
+        final ItemExpService.LevelUpResult result = this.itemExpService.addXpToHeldWeapon(
                 playerRef,
                 inventory,
                 xpGained
         );
 
-        if (!success) {
+        if (!result.isSuccess()) {
             return;
         }
 
-        // Get updated weapon to check new level
+        // Get updated weapon for logging and notifications
         final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
-        final int levelAfter = this.itemExpService.getItemLevel(updatedWeapon);
 
         // Debug: Log XP gain to console
-        final double totalXp = this.itemExpService.getItemXp(updatedWeapon);
-        final double xpToNextLevel = this.itemExpService.getXpToNextLevel(levelAfter);
-        System.out.println(String.format(
-                "[ItemExp] %s gained %.2f XP | Total: %.2f | Level: %d | XP to next: %.2f",
-                updatedWeapon.getItemId(),
-                xpGained,
-                totalXp,
-                levelAfter,
-                xpToNextLevel
-        ));
+        if (this.config.isDebug()) {
+            final double totalXp = this.itemExpService.getItemXp(updatedWeapon);
+            final double xpToNextLevel = this.itemExpService.getXpToNextLevel(result.getLevelAfter());
+            System.out.println(String.format(
+                    "[ItemExp] %s gained %.2f XP | Total: %.2f | Level: %d | XP to next: %.2f",
+                    updatedWeapon.getItemId(),
+                    xpGained,
+                    totalXp,
+                    result.getLevelAfter(),
+                    xpToNextLevel
+            ));
+        }
 
         // Send notifications if enabled
         if (this.config.isShowXpNotifications() && xpGained >= this.config.getMinXpForNotification()) {
@@ -145,9 +176,47 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         }
 
         // Check for level up
-        if (levelAfter > levelBefore) {
-            ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, levelAfter);
+        if (result.didLevelUp()) {
+            ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, result.getLevelAfter());
+            
+            // Log effect summary on level up
+            final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
+            System.out.println(String.format(
+                    "[ItemExp] Level up! New effects: %s",
+                    effectsService.getEffectsSummary(updatedWeapon)
+            ));
         }
+    }
+    
+    /**
+     * Apply weapon effects when dealing damage.
+     */
+    private void applyWeaponEffects(
+            @Nonnull final Damage damage,
+            @Nonnull final Ref<EntityStore> targetRef,
+            @Nonnull final Ref<EntityStore> attackerRef,
+            @Nonnull final PlayerRef playerRef,
+            @Nonnull final ItemStack weapon,
+            final int weaponLevel,
+            @Nonnull final Store<EntityStore> store,
+            @Nonnull final CommandBuffer<EntityStore> commandBuffer
+    ) {
+        final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
+        
+        // Build the effect context
+        final EffectContext context = EffectContext.builder()
+                .originalDamage(damage)
+                .targetRef(targetRef)
+                .attackerRef(attackerRef)
+                .attackerPlayerRef(playerRef)
+                .weapon(weapon)
+                .weaponLevel(weaponLevel)
+                .store(store)
+                .commandBuffer(commandBuffer)
+                .build();
+        
+        // Apply all on-damage effects
+        effectsService.applyOnDamageEffects(context);
     }
 
     /**
