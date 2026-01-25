@@ -50,6 +50,12 @@ public class EffectContext {
     private final int weaponLevel;
     
     /**
+     * The category of the weapon (PHYSICAL, PROJECTILE, MAGIC).
+     * Determined from DamageCause and item ID.
+     */
+    private final WeaponCategory weaponCategory;
+    
+    /**
      * The entity store for component access.
      */
     private final Store<EntityStore> store;
@@ -66,6 +72,7 @@ public class EffectContext {
         this.attackerPlayerRef = builder.attackerPlayerRef;
         this.weapon = builder.weapon;
         this.weaponLevel = builder.weaponLevel;
+        this.weaponCategory = builder.weaponCategory;
         this.store = builder.store;
         this.commandBuffer = builder.commandBuffer;
     }
@@ -109,6 +116,11 @@ public class EffectContext {
     }
     
     @Nonnull
+    public WeaponCategory getWeaponCategory() {
+        return this.weaponCategory;
+    }
+    
+    @Nonnull
     public Store<EntityStore> getStore() {
         return this.store;
     }
@@ -135,6 +147,7 @@ public class EffectContext {
         private PlayerRef attackerPlayerRef;
         private ItemStack weapon;
         private int weaponLevel;
+        private WeaponCategory weaponCategory = WeaponCategory.PHYSICAL; // Default
         private Store<EntityStore> store;
         private CommandBuffer<EntityStore> commandBuffer;
         
@@ -168,6 +181,11 @@ public class EffectContext {
             return this;
         }
         
+        public Builder weaponCategory(final WeaponCategory category) {
+            this.weaponCategory = category;
+            return this;
+        }
+        
         public Builder store(final Store<EntityStore> store) {
             this.store = store;
             return this;
@@ -179,6 +197,14 @@ public class EffectContext {
         }
         
         public EffectContext build() {
+            // Auto-detect category if not explicitly set and we have damage/weapon info
+            if (this.weaponCategory == WeaponCategory.PHYSICAL && 
+                (this.originalDamage != null || this.weapon != null)) {
+                this.weaponCategory = WeaponCategoryUtil.determineCategory(
+                        this.originalDamage, 
+                        this.weapon
+                );
+            }
             return new EffectContext(this);
         }
     }

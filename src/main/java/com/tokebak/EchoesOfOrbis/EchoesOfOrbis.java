@@ -40,6 +40,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
         
         // Register the damage system that processes combat events
+        // This handles XP gain, weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
                 (ISystem) new ItemExpDamageSystem(this.itemExpService, cfg)
         );
@@ -49,6 +50,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
         System.out.println("[EOO]: Weapon Effects System initialized with default effects:");
         System.out.println("[EOO]:   - DAMAGE_PERCENT: +5% damage per weapon level");
+        System.out.println("[EOO]:   - DURABILITY_SAVE: 5% + 1%/level chance to save durability");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded, /eoo for UI"));

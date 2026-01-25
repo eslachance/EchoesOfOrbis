@@ -15,9 +15,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -128,6 +131,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                     playerRef,
                     weapon,
                     weaponLevel,
+                    inventory,
                     store,
                     commandBuffer
             );
@@ -191,6 +195,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     /**
      * Apply weapon effects when dealing damage.
      */
+    @SuppressWarnings("deprecation")
     private void applyWeaponEffects(
             @Nonnull final Damage damage,
             @Nonnull final Ref<EntityStore> targetRef,
@@ -198,10 +203,14 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             @Nonnull final PlayerRef playerRef,
             @Nonnull final ItemStack weapon,
             final int weaponLevel,
+            @Nonnull final Inventory inventory,
             @Nonnull final Store<EntityStore> store,
             @Nonnull final CommandBuffer<EntityStore> commandBuffer
     ) {
         final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
+        
+        // Determine weapon category from damage cause and weapon ID
+        final WeaponCategory category = WeaponCategoryUtil.determineCategory(damage, weapon);
         
         // Build the effect context
         final EffectContext context = EffectContext.builder()
@@ -211,12 +220,70 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 .attackerPlayerRef(playerRef)
                 .weapon(weapon)
                 .weaponLevel(weaponLevel)
+                .weaponCategory(category)
                 .store(store)
                 .commandBuffer(commandBuffer)
                 .build();
         
-        // Apply all on-damage effects
+        // Apply all on-damage effects (filtered by category)
         effectsService.applyOnDamageEffects(context);
+        
+        // Check if durability save was triggered - restore durability preemptively
+        // The durability loss system will subtract, but we add first, so net = 0
+        final Boolean shouldRestoreDurability = damage.getMetaStore().getIfPresentMetaObject(
+                DurabilitySaveRestoreSystem.RESTORE_DURABILITY
+        );
+        
+        if (shouldRestoreDurability != null && shouldRestoreDurability) {
+            // Only restore if this damage cause would lose durability
+            if (damage.getCause() != null && damage.getCause().isDurabilityLoss()) {
+                this.restoreWeaponDurability(weapon, inventory);
+            }
+        }
+        
+        // Debug log
+        if (this.config.isDebug()) {
+            System.out.println(String.format(
+                    "[ItemExp] Applied effects for %s weapon: %s",
+                    WeaponCategoryUtil.getDisplayName(category),
+                    weapon.getItemId()
+            ));
+        }
+    }
+    
+    /**
+     * Restore durability to a weapon by adding the amount that would be lost.
+     * Called when DURABILITY_SAVE effect triggers.
+     * We add durability BEFORE the system subtracts it, so net effect is 0.
+     */
+    private void restoreWeaponDurability(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final Inventory inventory
+    ) {
+        final var itemConfig = weapon.getItem();
+        if (itemConfig == null || itemConfig.getWeapon() == null) {
+            return;
+        }
+        
+        // Get how much durability would be lost
+        final double durabilityToRestore = itemConfig.getDurabilityLossOnHit();
+        if (durabilityToRestore <= 0) {
+            return;
+        }
+        
+        // Get the hotbar slot
+        final byte activeSlot = inventory.getActiveHotbarSlot();
+        if (activeSlot == -1) {
+            return;
+        }
+        
+        // Create a new item with added durability (positive = add)
+        // This counteracts the durability loss that will happen later
+        final ItemStack restoredWeapon = weapon.withIncreasedDurability(durabilityToRestore);
+        
+        // Replace in hotbar
+        final ItemContainer hotbar = inventory.getHotbar();
+        hotbar.setItemStackForSlot((short) activeSlot, restoredWeapon);
     }
 
     /**

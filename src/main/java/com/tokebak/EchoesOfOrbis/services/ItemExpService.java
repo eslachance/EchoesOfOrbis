@@ -157,9 +157,10 @@ public class ItemExpService {
      */
     @Nonnull
     public ItemStack updateWeaponEffects(@Nonnull final ItemStack weapon, final int newLevel) {
-        // Update the DAMAGE_PERCENT effect to match weapon level
-        // This gives +5% damage per level (configured in WeaponEffectsService)
-        return this.effectsService.updateDamagePercentEffect(weapon, newLevel);
+        // TEMPORARY: Update all standard effects for testing
+        // This adds both DAMAGE_PERCENT (+5% per level) and DURABILITY_SAVE (5% + 1% per level)
+        // These are applied to ALL weapon types for testing purposes
+        return this.effectsService.updateAllStandardEffects(weapon, newLevel);
     }
 
     /**

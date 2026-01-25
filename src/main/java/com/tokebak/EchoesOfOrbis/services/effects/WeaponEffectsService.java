@@ -4,6 +4,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -91,6 +92,19 @@ public class WeaponEffectsService {
                         .description("Heal {value} of damage dealt")
                         .build()
         );
+        
+        // DURABILITY_SAVE: Chance to not lose durability on hit
+        // 5% base chance at effect level 1, +1% per additional level, max 50%
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.DURABILITY_SAVE)
+                        .baseValue(0.05)      // 5% at effect level 1
+                        .valuePerLevel(0.01)  // +1% per additional level
+                        .maxValue(0.50)       // Cap at 50%
+                        .maxLevel(45)
+                        .description("{value} chance to save durability")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.DURABILITY_SAVE, new DurabilitySaveProcessor());
         
         // More effects can be registered here or in configuration
     }
@@ -259,20 +273,78 @@ public class WeaponEffectsService {
         return this.setEffect(weapon, effect);
     }
     
+    /**
+     * TEMPORARY: Add DURABILITY_SAVE effect for testing.
+     * 
+     * This is added starting at weapon level 2:
+     * - Weapon level 2 → Effect level 1 → 5% save chance
+     * - Weapon level 3 → Effect level 2 → 6% save chance
+     * - etc. (+1% per level)
+     * 
+     * @param weapon The weapon
+     * @param weaponLevel The weapon's current level
+     * @return New ItemStack with updated effect
+     */
+    @Nonnull
+    public ItemStack updateDurabilitySaveEffect(
+            @Nonnull final ItemStack weapon,
+            final int weaponLevel
+    ) {
+        // Effect level = weaponLevel - 1 (level 1 weapons have no bonus)
+        final int effectLevel = weaponLevel - 1;
+        
+        // Don't add effect if level would be 0 or negative
+        if (effectLevel < 1) {
+            return weapon;
+        }
+        
+        final WeaponEffectInstance effect = new WeaponEffectInstance(
+                WeaponEffectType.DURABILITY_SAVE,
+                effectLevel
+        );
+        return this.setEffect(weapon, effect);
+    }
+    
+    /**
+     * TEMPORARY: Update all standard effects for testing.
+     * Called on level up to add both DAMAGE_PERCENT and DURABILITY_SAVE.
+     * 
+     * @param weapon The weapon
+     * @param weaponLevel The weapon's current level
+     * @return New ItemStack with updated effects
+     */
+    @Nonnull
+    public ItemStack updateAllStandardEffects(
+            @Nonnull final ItemStack weapon,
+            final int weaponLevel
+    ) {
+        ItemStack updated = this.updateDamagePercentEffect(weapon, weaponLevel);
+        updated = this.updateDurabilitySaveEffect(updated, weaponLevel);
+        return updated;
+    }
+    
     // ==================== Effect Application ====================
     
     /**
      * Apply all on-damage effects for a weapon.
      * Called from ItemExpDamageSystem when damage is dealt.
+     * Only applies effects that match the weapon's category.
      * 
      * @param context The effect context with damage info
      */
     public void applyOnDamageEffects(@Nonnull final EffectContext context) {
         final List<WeaponEffectInstance> effects = this.getEffects(context.getWeapon());
+        final WeaponCategory category = context.getWeaponCategory();
         
         for (final WeaponEffectInstance effect : effects) {
             final WeaponEffectType type = effect.getType();
             if (type == null) {
+                continue;
+            }
+            
+            // Check if this effect applies to the weapon's category
+            if (!type.appliesTo(category)) {
+                // Effect doesn't apply to this weapon type, skip it
                 continue;
             }
             

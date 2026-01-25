@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -81,14 +83,14 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
             if (weapon.isUnused) {
                 // Unused items: grey text, no XP/effects shown
-                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [unused]");
+                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [" + weapon.categoryText + "] [unused]");
                 uiCommandBuilder.set(sel + " #ItemName.Style.TextColor", "#666666");
                 uiCommandBuilder.set(sel + " #XpInfo.Visible", false);
                 uiCommandBuilder.set(sel + " #Effects.Visible", false);
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
             } else {
-                // Active items: full display
-                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [Lv. " + weapon.level + "]");
+                // Active items: full display with category
+                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [" + weapon.categoryText + "] [Lv. " + weapon.level + "]");
                 uiCommandBuilder.set(sel + " #XpInfo.Text", weapon.xpText);
                 uiCommandBuilder.set(sel + " #Effects.Text", weapon.effectsText);
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
@@ -128,6 +130,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final String name;
         final int level;
         final double totalXp;
+        final WeaponCategory category;
+        final String categoryText;
         final String xpText;
         final String effectsText;
         final String locationText;
@@ -138,6 +142,10 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             this.level = itemExpService.getItemLevel(item);
             this.totalXp = itemExpService.getItemXp(item);
             this.isUnused = this.totalXp == 0;
+            
+            // Determine weapon category from item ID (no damage event available here)
+            this.category = WeaponCategoryUtil.determineCategory(null, item);
+            this.categoryText = WeaponCategoryUtil.getDisplayName(this.category);
 
             final double xpForCurrent = itemExpService.getXpRequiredForLevel(level);
             final double xpForNext = itemExpService.getXpRequiredForLevel(level + 1);
