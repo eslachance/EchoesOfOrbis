@@ -253,15 +253,24 @@ public class ItemExpService {
 
     /**
      * Check if an item can gain XP (is it a weapon/tool that should level up?)
-     * Only weapons and tools can gain XP.
+     * Only non-stackable weapons and tools can gain XP.
+     * Excludes arrows, bullets, and other projectile ammo (which stack).
      */
     public boolean canGainXp(@Nullable final ItemStack item) {
         if (item == null || item.isEmpty()) {
             return false;
         }
 
+        final var itemConfig = item.getItem();
+
+        // Exclude stackable items - ammo like arrows/bullets stack, real weapons don't
+        // maxStack > 1 means it's ammo or consumable, not a real weapon
+        if (itemConfig.getMaxStack() > 1) {
+            return false;
+        }
+
         // Allow weapons and tools to gain XP
-        return item.getItem().getWeapon() != null || item.getItem().getTool() != null;
+        return itemConfig.getWeapon() != null || itemConfig.getTool() != null;
     }
 
     /**
