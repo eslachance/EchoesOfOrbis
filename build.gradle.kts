@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("com.gradleup.shadow") version "9.3.1"
-    id("app.ultradev.hytalegradle") version "1.6.7"
+    id("app.ultradev.hytalegradle") version "2.0.0"
 }
 
 group = "tokebak"
@@ -29,7 +29,7 @@ hytale {
     allowOp.set(true)
 
     // Set the patchline to use, currently there are "release" and "pre-release"
-    patchline.set("release")
+    patchline.set("pre-release")
 
     // Load mods from the local Hytale installation
     includeLocalMods.set(true)

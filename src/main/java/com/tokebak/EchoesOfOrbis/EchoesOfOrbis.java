@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.util.Config;
+import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
@@ -34,7 +35,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         // Initialize services
         // WeaponEffectsService manages effect definitions, processors, and application
         this.weaponEffectsService = new WeaponEffectsService();
-        
+
         // ItemExpService handles XP/leveling and coordinates with effects service
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
         
@@ -42,6 +43,8 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(
                 (ISystem) new ItemExpDamageSystem(this.itemExpService, cfg)
         );
+
+        this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
         System.out.println("[EOO]: Weapon Effects System initialized with default effects:");

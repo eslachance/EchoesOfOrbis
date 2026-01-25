@@ -3,6 +3,7 @@
   "Name": "Echoes Of Orbis",
   "Version": "1.0-SNAPSHOT",
   "Main": "com.tokebak.EchoesOfOrbis.EchoesOfOrbis",
+  "IncludesAssetPack": true,
   "Dependencies": {
 
   },
