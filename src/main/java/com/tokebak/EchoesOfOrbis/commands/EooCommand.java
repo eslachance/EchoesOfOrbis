@@ -46,7 +46,7 @@ public class EooCommand extends AbstractPlayerCommand {
         Player player = context.senderAs(Player.class);
 
         CompletableFuture.runAsync(() -> {
-            player.getPageManager().openCustomPage(ref, store, new EOO_Main_Page(playerRef, CustomPageLifetime.CanDismiss));
+            player.getPageManager().openCustomPage(ref, store, new EOO_Main_Page(playerRef, CustomPageLifetime.CanDismiss, this.itemExpService));
             playerRef.sendMessage(Message.raw("UI Page Shown"));
         }, world);
 

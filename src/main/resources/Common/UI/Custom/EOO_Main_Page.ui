@@ -1,27 +1,38 @@
 $Common = "Common.ui";
 
-@MyTex = PatchStyle(TexturePath: "MyBackground.png");
-
 Group {
-  LayoutMode: Center;
+    LayoutMode: Center;
 
-  Group #MyPanel {
-  Background: @MyTex;
-    Anchor: (Width: 800, Height: 1000);
-    LayoutMode: Top;
+    Group #MainPanel {
+        Background: $Common.@InputBoxBackground;
+        Anchor: (Width: 500, Height: 400);
+        LayoutMode: Top;
 
-    Label #MyLabel {
-      Style: (FontSize: 32, Alignment: Center);
-      Anchor: (Top: 50);
-      Text: "MyText";
-      Padding: (Full: 10);
+        Label #Title {
+            Style: (FontSize: 24, Alignment: Center, TextColor: #e0c070);
+            Anchor: (Top: 20);
+            Text: "Echoes of Orbis";
+            Padding: (Full: 10);
+        }
+
+        Label #Subtitle {
+            Style: (FontSize: 14, Alignment: Center, TextColor: #888888);
+            Text: "Item Experience";
+            Padding: (Bottom: 10);
+        }
+
+        Group #ItemList {
+            Anchor: (Width: 480);
+            LayoutMode: Top;
+            Padding: (Left: 10, Right: 10);
+            FlexWeight: 1;
+        }
+
+        Label #ItemCount {
+            Style: (FontSize: 12, Alignment: Center, TextColor: #666666);
+            Anchor: (Top: 10);
+            Text: "0 items found";
+            Padding: (Full: 10);
+        }
     }
-
-    TextField #MyInput {
-      Style: $Common.@DefaultInputFieldStyle;
-      Background: $Common.@InputBoxBackground;
-      Anchor: (Top: 10, Width: 200, Height: 50);
-      Padding: (Full: 10);
-    }
-  }
 }
