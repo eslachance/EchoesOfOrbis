@@ -5,7 +5,7 @@ Group {
 
     Group #MainPanel {
         Background: $Common.@InputBoxBackground;
-        Anchor: (Width: 500, Height: 400);
+        Anchor: (Width: 500, Height: 1000);
         LayoutMode: Top;
 
         Label #Title {
@@ -21,16 +21,21 @@ Group {
             Padding: (Bottom: 10);
         }
 
-        Group #ItemList {
-            Anchor: (Width: 480);
-            LayoutMode: Top;
-            Padding: (Left: 10, Right: 10);
+        Group #ItemListContainer {
+            Anchor: (Width: 480, Top: 5);
             FlexWeight: 1;
+            LayoutMode: TopScrolling;
+            Padding: (Left: 10, Right: 10);
+            ScrollbarStyle: $Common.@DefaultScrollbarStyle;
+
+            Group #ItemList {
+                LayoutMode: Top;
+            }
         }
 
         Label #ItemCount {
             Style: (FontSize: 12, Alignment: Center, TextColor: #666666);
-            Anchor: (Top: 10);
+            Anchor: (Top: 10, Height: 30);
             Text: "0 items found";
             Padding: (Full: 10);
         }
