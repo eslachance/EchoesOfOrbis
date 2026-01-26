@@ -1,9 +1,12 @@
 package com.tokebak.EchoesOfOrbis.ui;
 
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.inventory.Inventory;
@@ -26,6 +29,12 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
     @Nonnull
     private final ItemExpService itemExpService;
+    
+    @Nonnull
+    private final PlayerRef playerRef;
+    
+    // Store weapon info for click event handling
+    private List<WeaponInfo> weaponsList;
 
     public EOO_Main_Page(
             @Nonnull PlayerRef playerRef,
@@ -33,6 +42,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             @Nonnull ItemExpService itemExpService
     ) {
         super(playerRef, lifetime, Data.CODEC);
+        this.playerRef = playerRef;
         this.itemExpService = itemExpService;
     }
 
@@ -56,24 +66,24 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final Inventory inventory = playerComponent.getInventory();
 
         // Collect all weapons from hotbar, storage (main inventory), and backpack
-        final List<WeaponInfo> weapons = new ArrayList<>();
-        collectWeapons(inventory.getHotbar(), "Hotbar", weapons);
-        collectWeapons(inventory.getStorage(), "Storage", weapons);
-        collectWeapons(inventory.getBackpack(), "Backpack", weapons);
+        this.weaponsList = new ArrayList<>();
+        collectWeapons(inventory.getHotbar(), "Hotbar", this.weaponsList);
+        collectWeapons(inventory.getStorage(), "Storage", this.weaponsList);
+        collectWeapons(inventory.getBackpack(), "Backpack", this.weaponsList);
 
         // Sort: used items first (by level desc, then XP desc), unused items at bottom
-        weapons.sort(Comparator
+        this.weaponsList.sort(Comparator
                 .comparing((WeaponInfo w) -> w.isUnused)           // unused items last
                 .thenComparing((WeaponInfo w) -> w.level, Comparator.reverseOrder())  // highest level first
                 .thenComparing((WeaponInfo w) -> w.totalXp, Comparator.reverseOrder()) // highest XP first
         );
 
         // Update item count
-        uiCommandBuilder.set("#ItemCount.Text", weapons.size() + " items found");
+        uiCommandBuilder.set("#ItemCount.Text", this.weaponsList.size() + " items found");
 
         // Add an entry for each weapon
-        for (int i = 0; i < weapons.size(); i++) {
-            final WeaponInfo weapon = weapons.get(i);
+        for (int i = 0; i < this.weaponsList.size(); i++) {
+            final WeaponInfo weapon = this.weaponsList.get(i);
 
             // Append the entry template
             uiCommandBuilder.append("#ItemList", "EOO_Item_Entry.ui");
@@ -83,17 +93,20 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
             if (weapon.isUnused) {
                 // Unused items: grey text, no XP/effects shown
-                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [" + weapon.categoryText + "] [unused]");
+                uiCommandBuilder.set(sel + " #ItemName.Text", buildUnusedItemLabel(weapon));
                 uiCommandBuilder.set(sel + " #ItemName.Style.TextColor", "#666666");
                 uiCommandBuilder.set(sel + " #XpInfo.Visible", false);
                 uiCommandBuilder.set(sel + " #Effects.Visible", false);
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
             } else {
-                // Active items: full display with category
-                uiCommandBuilder.set(sel + " #ItemName.Text", weapon.name + " [" + weapon.categoryText + "] [Lv. " + weapon.level + "]");
+                // Active items: full display with category and translated name
+                uiCommandBuilder.set(sel + " #ItemName.Text", buildItemLabel(weapon));
                 uiCommandBuilder.set(sel + " #XpInfo.Text", weapon.xpText);
                 uiCommandBuilder.set(sel + " #Effects.Text", weapon.effectsText);
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
+                
+                // TODO: Click events for embue selection need UI fix (Activating event on Button)
+                // For now, embue selection is disabled until we figure out how to make it work
             }
         }
     }
@@ -112,10 +125,67 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         }
     }
 
+    /**
+     * Get display name for an item. Uses translation if available, falls back to formatName.
+     */
+    private String getDisplayName(ItemStack item) {
+        final String translationKey = item.getItem().getTranslationKey();
+        
+        // Try to get the translated name via Message
+        final String translated = Message.translation(translationKey).getAnsiMessage();
+        
+        // If translation succeeded (not empty and not just the key), use it
+        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
+            return translated;
+        }
+        
+        // Fallback: parse the item ID into a readable name
+        final String itemId = item.getItem().getId();
+        return formatName(itemId);
+    }
+    
+    /**
+     * Build a full item label with name, category, and level info.
+     */
+    private String buildItemLabel(WeaponInfo weapon) {
+        final String name = getDisplayName(weapon.item);
+        
+        // Build suffix with category and level
+        String label = name + " [" + weapon.categoryText + "] [Lv. " + weapon.level + "]";
+        if (weapon.pendingEmbues > 0) {
+            label += " [+" + weapon.pendingEmbues + " Embues]";
+        }
+        
+        return label;
+    }
+    
+    /**
+     * Build label for unused items.
+     */
+    private String buildUnusedItemLabel(WeaponInfo weapon) {
+        final String name = getDisplayName(weapon.item);
+        return name + " [" + weapon.categoryText + "] [unused]";
+    }
+    
+    /**
+     * Fallback name formatter - parses item ID into readable name.
+     * E.g., "Weapon_Sword_Crude" -> "Crude Sword"
+     */
     private String formatName(String raw) {
         if (raw == null || raw.isEmpty()) return "Unknown";
+        
+        // Remove common prefixes
+        String cleaned = raw;
+        if (cleaned.startsWith("Weapon_")) cleaned = cleaned.substring(7);
+        if (cleaned.startsWith("Tool_")) cleaned = cleaned.substring(5);
+        
+        // Split by underscore and capitalize each word
         StringBuilder sb = new StringBuilder();
-        for (String word : raw.replace("_", " ").split(" ")) {
+        String[] parts = cleaned.split("_");
+        
+        // Reverse order often makes more sense (e.g., Sword_Crude -> Crude Sword)
+        for (int i = parts.length - 1; i >= 0; i--) {
+            String word = parts[i];
             if (!word.isEmpty()) {
                 if (sb.length() > 0) sb.append(" ");
                 sb.append(Character.toUpperCase(word.charAt(0)));
@@ -127,7 +197,9 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
     // Helper class to hold weapon info
     private class WeaponInfo {
-        final String name;
+        final ItemStack item;
+        final String containerName;
+        final int slot;
         final int level;
         final double totalXp;
         final WeaponCategory category;
@@ -136,12 +208,16 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final String effectsText;
         final String locationText;
         final boolean isUnused;
+        final int pendingEmbues;
 
         WeaponInfo(ItemStack item, String containerName, int slot) {
-            this.name = formatName(item.getItemId());
+            this.item = item;
+            this.containerName = containerName;
+            this.slot = slot;
             this.level = itemExpService.getItemLevel(item);
             this.totalXp = itemExpService.getItemXp(item);
             this.isUnused = this.totalXp == 0;
+            this.pendingEmbues = itemExpService.getPendingEmbues(item);
             
             // Determine weapon category from item ID (no damage event available here)
             this.category = WeaponCategoryUtil.determineCategory(null, item);
@@ -168,6 +244,28 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             @Nonnull Store<EntityStore> store,
             Data data
     ) {
+        // Handle weapon click for embue selection
+        if (data.clickedWeapon >= 0 && this.weaponsList != null && data.clickedWeapon < this.weaponsList.size()) {
+            final WeaponInfo weapon = this.weaponsList.get(data.clickedWeapon);
+            
+            // Only open selection if there are pending embues
+            if (weapon.pendingEmbues > 0) {
+                final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+                if (playerComponent != null) {
+                    // Open the embue selection page
+                    final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
+                            this.playerRef,
+                            CustomPageLifetime.CanDismiss,
+                            this.itemExpService,
+                            weapon.containerName,
+                            weapon.slot
+                    );
+                    playerComponent.getPageManager().openCustomPage(ref, store, selectionPage);
+                }
+            }
+            return;
+        }
+        
         super.handleDataEvent(ref, store, data);
         sendUpdate();
     }
@@ -175,6 +273,13 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     public static class Data {
         public static final BuilderCodec<Data> CODEC = BuilderCodec
                 .builder(Data.class, Data::new)
+                .append(
+                        new KeyedCodec<>("ClickedWeapon", Codec.INTEGER),
+                        (d, v) -> d.clickedWeapon = v,
+                        d -> d.clickedWeapon
+                ).add()
                 .build();
+        
+        public int clickedWeapon = -1;
     }
 }

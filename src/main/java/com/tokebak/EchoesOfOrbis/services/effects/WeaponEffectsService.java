@@ -7,6 +7,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProces
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -309,6 +310,33 @@ public class WeaponEffectsService {
     }
     
     /**
+     * Generic method to update any effect type for a given weapon level.
+     * Used by the embue system when effects are unlocked and need to scale with level.
+     * 
+     * @param weapon The weapon
+     * @param effectType The type of effect to update
+     * @param weaponLevel The weapon's current level
+     * @return New ItemStack with updated effect
+     */
+    @Nonnull
+    public ItemStack updateEffectForLevel(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final WeaponEffectType effectType,
+            final int weaponLevel
+    ) {
+        // Effect level = weaponLevel - 1 (level 1 weapons have no bonus)
+        final int effectLevel = weaponLevel - 1;
+        
+        // Don't add effect if level would be 0 or negative
+        if (effectLevel < 1) {
+            return weapon;
+        }
+        
+        final WeaponEffectInstance effect = new WeaponEffectInstance(effectType, effectLevel);
+        return this.setEffect(weapon, effect);
+    }
+    
+    /**
      * TEMPORARY: Update all standard effects for testing.
      * Called on level up to add both DAMAGE_PERCENT and DURABILITY_SAVE.
      * 
@@ -386,6 +414,82 @@ public class WeaponEffectsService {
         
         return multiplier;
     }
+    
+    // ==================== Embue Selection ====================
+    
+    /**
+     * Get a list of effect types that can be selected as embues for a weapon.
+     * Filters by:
+     * - Weapon category (only effects that apply to this weapon type)
+     * - Already unlocked effects (excludes them)
+     * - DAMAGE_PERCENT (excluded, as it's automatic)
+     * - Has a registered definition (effect is implemented)
+     * 
+     * @param category The weapon's category
+     * @param alreadyUnlocked List of already unlocked effect type IDs
+     * @return List of selectable effect types
+     */
+    @Nonnull
+    public List<WeaponEffectType> getSelectableEffects(
+            @Nonnull final WeaponCategory category,
+            @Nonnull final List<String> alreadyUnlocked
+    ) {
+        final List<WeaponEffectType> selectable = new ArrayList<>();
+        
+        for (final WeaponEffectType type : WeaponEffectType.values()) {
+            // Skip DAMAGE_PERCENT - it's always automatic
+            if (type == WeaponEffectType.DAMAGE_PERCENT) {
+                continue;
+            }
+            
+            // Skip if already unlocked
+            if (alreadyUnlocked.contains(type.getId())) {
+                continue;
+            }
+            
+            // Skip if doesn't apply to this weapon category
+            if (!type.appliesTo(category)) {
+                continue;
+            }
+            
+            // Skip if we don't have a definition for it (not implemented)
+            if (!this.definitions.containsKey(type)) {
+                continue;
+            }
+            
+            selectable.add(type);
+        }
+        
+        return selectable;
+    }
+    
+    /**
+     * Get random selectable effects for embue selection UI.
+     * Returns up to `count` random effects that can be selected.
+     * 
+     * @param category The weapon's category
+     * @param alreadyUnlocked List of already unlocked effect type IDs
+     * @param count Maximum number of effects to return
+     * @return List of random selectable effect types
+     */
+    @Nonnull
+    public List<WeaponEffectType> getRandomSelectableEffects(
+            @Nonnull final WeaponCategory category,
+            @Nonnull final List<String> alreadyUnlocked,
+            final int count
+    ) {
+        final List<WeaponEffectType> selectable = this.getSelectableEffects(category, alreadyUnlocked);
+        
+        if (selectable.size() <= count) {
+            return selectable;
+        }
+        
+        // Shuffle and take first N
+        Collections.shuffle(selectable);
+        return selectable.subList(0, count);
+    }
+    
+    // ==================== Display ====================
     
     /**
      * Get a summary string of all effects on a weapon.

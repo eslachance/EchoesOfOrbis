@@ -2,12 +2,17 @@ package com.tokebak.EchoesOfOrbis.services;
 
 
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -26,6 +31,20 @@ public class ItemExpService {
     // Metadata keys stored on items
     public static final String META_KEY_XP = "ItemExp_XP";
     public static final String META_KEY_LEVEL = "ItemExp_Level";
+    public static final String META_KEY_PENDING_EMBUES = "ItemExp_PendingEmbues";
+    public static final String META_KEY_UNLOCKED_EFFECTS = "ItemExp_UnlockedEffects";
+    
+    /**
+     * Codec for storing unlocked effect IDs as string array.
+     */
+    private static final Codec<String[]> UNLOCKED_EFFECTS_CODEC = 
+            new ArrayCodec<>(Codec.STRING, String[]::new);
+    
+    /**
+     * Milestone levels where players can select an embue.
+     * At each of these levels, a pending embue is added.
+     */
+    public static final int[] EMBUE_MILESTONES = {5, 10, 15, 20, 25};
 
     private final EchoesOfOrbisConfig config;
     private final WeaponEffectsService effectsService;
@@ -44,6 +63,112 @@ public class ItemExpService {
     @Nonnull
     public WeaponEffectsService getEffectsService() {
         return this.effectsService;
+    }
+    
+    // ==================== EMBUE SYSTEM ====================
+    
+    /**
+     * Check if a level is a milestone level where an embue is awarded.
+     */
+    public static boolean isMilestoneLevel(final int level) {
+        for (final int milestone : EMBUE_MILESTONES) {
+            if (level == milestone) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Get the number of pending embues (embue selections waiting to be made).
+     */
+    public int getPendingEmbues(@Nullable final ItemStack item) {
+        if (item == null) {
+            return 0;
+        }
+        final Integer pending = (Integer) item.getFromMetadataOrNull(META_KEY_PENDING_EMBUES, Codec.INTEGER);
+        return pending != null ? pending : 0;
+    }
+    
+    /**
+     * Add a pending embue to the weapon.
+     * Returns a new ItemStack with incremented pending count.
+     */
+    @Nonnull
+    public ItemStack addPendingEmbue(@Nonnull final ItemStack item) {
+        final int current = this.getPendingEmbues(item);
+        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, current + 1);
+    }
+    
+    /**
+     * Consume (decrement) a pending embue after selection.
+     * Returns a new ItemStack with decremented pending count.
+     */
+    @Nonnull
+    public ItemStack consumePendingEmbue(@Nonnull final ItemStack item) {
+        final int current = this.getPendingEmbues(item);
+        final int newCount = Math.max(0, current - 1);
+        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, newCount);
+    }
+    
+    /**
+     * Get the list of unlocked effect type IDs for this weapon.
+     */
+    @Nonnull
+    public List<String> getUnlockedEffectIds(@Nullable final ItemStack item) {
+        if (item == null) {
+            return new ArrayList<>();
+        }
+        final String[] effects = (String[]) item.getFromMetadataOrNull(META_KEY_UNLOCKED_EFFECTS, UNLOCKED_EFFECTS_CODEC);
+        if (effects == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(Arrays.asList(effects));
+    }
+    
+    /**
+     * Get the list of unlocked effect types for this weapon.
+     */
+    @Nonnull
+    public List<WeaponEffectType> getUnlockedEffects(@Nullable final ItemStack item) {
+        final List<String> ids = this.getUnlockedEffectIds(item);
+        final List<WeaponEffectType> types = new ArrayList<>();
+        for (final String id : ids) {
+            final WeaponEffectType type = WeaponEffectType.fromId(id);
+            if (type != null) {
+                types.add(type);
+            }
+        }
+        return types;
+    }
+    
+    /**
+     * Check if a specific effect is unlocked on this weapon.
+     */
+    public boolean isEffectUnlocked(@Nullable final ItemStack item, @Nonnull final WeaponEffectType type) {
+        final List<String> ids = this.getUnlockedEffectIds(item);
+        return ids.contains(type.getId());
+    }
+    
+    /**
+     * Unlock an effect on a weapon.
+     * Returns a new ItemStack with the effect added to the unlocked list.
+     */
+    @Nonnull
+    public ItemStack unlockEffect(@Nonnull final ItemStack item, @Nonnull final WeaponEffectType type) {
+        final List<String> ids = this.getUnlockedEffectIds(item);
+        
+        // Don't add duplicates
+        if (ids.contains(type.getId())) {
+            return item;
+        }
+        
+        ids.add(type.getId());
+        return item.withMetadata(
+                META_KEY_UNLOCKED_EFFECTS, 
+                UNLOCKED_EFFECTS_CODEC, 
+                ids.toArray(new String[0])
+        );
     }
 
     /**
@@ -162,16 +287,32 @@ public class ItemExpService {
      * Update a weapon's effects based on its current level.
      * Called after XP is added and a level-up occurs.
      * 
+     * DAMAGE_PERCENT is always automatically updated.
+     * Other effects (like DURABILITY_SAVE) are only updated if they've been
+     * unlocked via the embue selection system.
+     * 
      * @param weapon The weapon to update
      * @param newLevel The weapon's new level
      * @return New ItemStack with updated effects
      */
     @Nonnull
     public ItemStack updateWeaponEffects(@Nonnull final ItemStack weapon, final int newLevel) {
-        // TEMPORARY: Update all standard effects for testing
-        // This adds both DAMAGE_PERCENT (+5% per level) and DURABILITY_SAVE (5% + 1% per level)
-        // These are applied to ALL weapon types for testing purposes
-        return this.effectsService.updateAllStandardEffects(weapon, newLevel);
+        // Always apply DAMAGE_PERCENT (the base damage scaling)
+        ItemStack updated = this.effectsService.updateDamagePercentEffect(weapon, newLevel);
+        
+        // Apply other effects only if they've been unlocked via embue selection
+        final List<WeaponEffectType> unlockedEffects = this.getUnlockedEffects(updated);
+        for (final WeaponEffectType effectType : unlockedEffects) {
+            // Skip DAMAGE_PERCENT since it's already applied
+            if (effectType == WeaponEffectType.DAMAGE_PERCENT) {
+                continue;
+            }
+            
+            // Update the effect based on weapon level
+            updated = this.effectsService.updateEffectForLevel(updated, effectType, newLevel);
+        }
+        
+        return updated;
     }
 
     /**
@@ -215,15 +356,38 @@ public class ItemExpService {
         // Calculate new level
         final int levelAfter = this.getItemLevel(updatedWeapon);
 
-        // If weapon leveled up, update its effects
+        // If weapon leveled up, update its effects and check for milestones
         if (levelAfter > levelBefore) {
             updatedWeapon = this.updateWeaponEffects(updatedWeapon, levelAfter);
+            
+            // Check if any milestone levels were crossed (can level up multiple times at once)
+            int newEmbuesToAdd = 0;
+            for (int level = levelBefore + 1; level <= levelAfter; level++) {
+                if (isMilestoneLevel(level)) {
+                    newEmbuesToAdd++;
+                }
+            }
+            
+            // Add pending embues for each milestone crossed
+            for (int i = 0; i < newEmbuesToAdd; i++) {
+                updatedWeapon = this.addPendingEmbue(updatedWeapon);
+            }
+            
+            final int pendingEmbues = this.getPendingEmbues(updatedWeapon);
             System.out.println(String.format(
-                    "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s",
+                    "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s | Pending Embues: %d",
                     levelBefore,
                     levelAfter,
-                    this.effectsService.getEffectsSummary(updatedWeapon)
+                    this.effectsService.getEffectsSummary(updatedWeapon),
+                    pendingEmbues
             ));
+            
+            if (newEmbuesToAdd > 0) {
+                System.out.println(String.format(
+                        "[ItemExp] Milestone reached! +%d embue(s) available. Use /eoo to select.",
+                        newEmbuesToAdd
+                ));
+            }
         }
 
         // Replace the item in the hotbar

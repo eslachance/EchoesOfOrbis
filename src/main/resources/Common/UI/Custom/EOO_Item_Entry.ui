@@ -1,6 +1,6 @@
 $Common = "Common.ui";
 
-Group #Entry {
+Button #Entry {
     Background: (Color: #1a1a2e);
     Anchor: (Width: 460, Bottom: 6);
     LayoutMode: Top;

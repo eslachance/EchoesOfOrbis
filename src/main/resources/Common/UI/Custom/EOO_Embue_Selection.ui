@@ -1,0 +1,113 @@
+$Common = "Common.ui";
+
+Group {
+    LayoutMode: Center;
+
+    Group #SelectionPanel {
+        Background: $Common.@InputBoxBackground;
+        Anchor: (Width: 400, Height: 450);
+        LayoutMode: Top;
+        Padding: (Full: 15);
+
+        Label #WeaponName {
+            Style: (FontSize: 18, Alignment: Center, TextColor: #ffffff, RenderBold: true);
+            Anchor: (Top: 10);
+            Text: "Weapon Name [Lv. 5]";
+        }
+
+        Label #Title {
+            Style: (FontSize: 16, Alignment: Center, TextColor: #e0c070);
+            Anchor: (Top: 10);
+            Text: "Choose an Embue";
+        }
+
+        Label #Description {
+            Style: (FontSize: 12, Alignment: Center, TextColor: #888888);
+            Anchor: (Top: 5);
+            Text: "Select a bonus effect for your weapon";
+        }
+
+        Group #OptionsContainer {
+            Anchor: (Width: 370, Top: 15);
+            LayoutMode: Top;
+
+            Group #Option1 {
+                Background: (Color: #2a2a4e);
+                Anchor: (Width: 370, Height: 80, Bottom: 8);
+                LayoutMode: Top;
+                Padding: (Full: 10);
+
+                Label #Option1Name {
+                    Style: (FontSize: 14, TextColor: #88ff88, RenderBold: true);
+                    Text: "Effect Name";
+                }
+
+                Label #Option1Value {
+                    Style: (FontSize: 12, TextColor: #ffcc00);
+                    Anchor: (Top: 2);
+                    Text: "Current Value: 10%";
+                }
+
+                Label #Option1Desc {
+                    Style: (FontSize: 11, TextColor: #aaaaaa);
+                    Anchor: (Top: 2);
+                    Text: "Effect description goes here";
+                }
+            }
+
+            Group #Option2 {
+                Background: (Color: #2a2a4e);
+                Anchor: (Width: 370, Height: 80, Bottom: 8);
+                LayoutMode: Top;
+                Padding: (Full: 10);
+
+                Label #Option2Name {
+                    Style: (FontSize: 14, TextColor: #88ff88, RenderBold: true);
+                    Text: "Effect Name";
+                }
+
+                Label #Option2Value {
+                    Style: (FontSize: 12, TextColor: #ffcc00);
+                    Anchor: (Top: 2);
+                    Text: "Current Value: 10%";
+                }
+
+                Label #Option2Desc {
+                    Style: (FontSize: 11, TextColor: #aaaaaa);
+                    Anchor: (Top: 2);
+                    Text: "Effect description goes here";
+                }
+            }
+
+            Group #Option3 {
+                Background: (Color: #2a2a4e);
+                Anchor: (Width: 370, Height: 80, Bottom: 8);
+                LayoutMode: Top;
+                Padding: (Full: 10);
+
+                Label #Option3Name {
+                    Style: (FontSize: 14, TextColor: #88ff88, RenderBold: true);
+                    Text: "Effect Name";
+                }
+
+                Label #Option3Value {
+                    Style: (FontSize: 12, TextColor: #ffcc00);
+                    Anchor: (Top: 2);
+                    Text: "Current Value: 10%";
+                }
+
+                Label #Option3Desc {
+                    Style: (FontSize: 11, TextColor: #aaaaaa);
+                    Anchor: (Top: 2);
+                    Text: "Effect description goes here";
+                }
+            }
+        }
+
+        Label #CancelButton {
+            Style: (FontSize: 14, Alignment: Center, TextColor: #ff6666);
+            Anchor: (Top: 15);
+            Text: "[Cancel]";
+        }
+    }
+}
