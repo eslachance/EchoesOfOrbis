@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
-import com.tokebak.EchoesOfOrbis.services.WeaponParticleService;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
@@ -37,17 +36,14 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
     private final ItemExpService itemExpService;
     private final EchoesOfOrbisConfig config;
-    private final WeaponParticleService weaponParticleService;
 
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
-            @Nonnull final EchoesOfOrbisConfig config,
-            @Nonnull final WeaponParticleService weaponParticleService
+            @Nonnull final EchoesOfOrbisConfig config
     ) {
         super();
         this.itemExpService = itemExpService;
         this.config = config;
-        this.weaponParticleService = weaponParticleService;
     }
 
     /**
@@ -140,15 +136,6 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                     commandBuffer
             );
         }
-        
-        // ==================== SPAWN WEAPON PARTICLES ====================
-        // Show visual particle effects on weapons with fire/poison embues
-        this.weaponParticleService.trySpawnWeaponParticles(
-                playerRef,
-                attackerRef,
-                weapon,
-                commandBuffer
-        );
         
         // ==================== AWARD XP ====================
         // Calculate XP to award based on original damage dealt
