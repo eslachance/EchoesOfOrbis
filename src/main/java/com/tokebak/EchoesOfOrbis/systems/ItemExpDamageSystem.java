@@ -237,7 +237,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         if (shouldRestoreDurability != null && shouldRestoreDurability) {
             // Only restore if this damage cause would lose durability
             if (damage.getCause() != null && damage.getCause().isDurabilityLoss()) {
-                this.restoreWeaponDurability(weapon, inventory);
+                this.restoreWeaponDurability(weapon, inventory, playerRef);
             }
         }
         
@@ -255,10 +255,13 @@ public class ItemExpDamageSystem extends DamageEventSystem {
      * Restore durability to a weapon by adding the amount that would be lost.
      * Called when DURABILITY_SAVE effect triggers.
      * We add durability BEFORE the system subtracts it, so net effect is 0.
+     * 
+     * Since we're replacing the weapon anyway, we also flush any pending XP.
      */
     private void restoreWeaponDurability(
             @Nonnull final ItemStack weapon,
-            @Nonnull final Inventory inventory
+            @Nonnull final Inventory inventory,
+            @Nonnull final PlayerRef playerRef
     ) {
         final var itemConfig = weapon.getItem();
         if (itemConfig == null || itemConfig.getWeapon() == null) {
@@ -277,13 +280,16 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
         
+        // Since we're replacing the weapon anyway, flush any pending XP first
+        ItemStack updatedWeapon = this.itemExpService.flushPendingXp(weapon, playerRef, activeSlot);
+        
         // Create a new item with added durability (positive = add)
         // This counteracts the durability loss that will happen later
-        final ItemStack restoredWeapon = weapon.withIncreasedDurability(durabilityToRestore);
+        updatedWeapon = updatedWeapon.withIncreasedDurability(durabilityToRestore);
         
         // Replace in hotbar
         final ItemContainer hotbar = inventory.getHotbar();
-        hotbar.setItemStackForSlot((short) activeSlot, restoredWeapon);
+        hotbar.setItemStackForSlot((short) activeSlot, updatedWeapon);
     }
 
     /**

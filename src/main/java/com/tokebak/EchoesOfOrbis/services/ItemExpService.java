@@ -13,6 +13,8 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -48,6 +50,17 @@ public class ItemExpService {
 
     private final EchoesOfOrbisConfig config;
     private final WeaponEffectsService effectsService;
+    
+    /**
+     * Cache of pending XP that hasn't been persisted to weapon metadata yet.
+     * This avoids replacing the weapon in the hotbar on every hit, which would
+     * reset the "ultimate" stat. XP is only persisted when the weapon levels up
+     * or when flushPendingXp() is called.
+     * 
+     * Key: playerUUID + ":" + hotbarSlot
+     * Value: accumulated XP
+     */
+    private final Map<String, Double> pendingXpCache = new ConcurrentHashMap<>();
 
     public ItemExpService(
             @Nonnull final EchoesOfOrbisConfig config,
@@ -55,6 +68,57 @@ public class ItemExpService {
     ) {
         this.config = config;
         this.effectsService = effectsService;
+    }
+    
+    /**
+     * Get the cache key for pending XP.
+     */
+    private String getPendingXpKey(@Nonnull final PlayerRef playerRef, final byte slot) {
+        return playerRef.getUuid().toString() + ":" + slot;
+    }
+    
+    /**
+     * Get the total XP for a weapon including any pending (not yet persisted) XP.
+     */
+    public double getTotalXpWithPending(@Nonnull final ItemStack weapon, @Nonnull final PlayerRef playerRef, final byte slot) {
+        final double storedXp = this.getItemXp(weapon);
+        final String key = getPendingXpKey(playerRef, slot);
+        final Double pendingXp = this.pendingXpCache.get(key);
+        return storedXp + (pendingXp != null ? pendingXp : 0.0);
+    }
+    
+    /**
+     * Flush pending XP for a player's hotbar slot to the weapon and return the updated weapon.
+     * Call this before replacing the weapon in the hotbar (e.g., for durability save).
+     * 
+     * @param weapon The current weapon
+     * @param playerRef The player
+     * @param slot The hotbar slot
+     * @return Updated weapon with flushed XP, or original if no pending XP
+     */
+    @Nonnull
+    public ItemStack flushPendingXp(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final PlayerRef playerRef,
+            final byte slot
+    ) {
+        final String key = getPendingXpKey(playerRef, slot);
+        final Double pendingXp = this.pendingXpCache.remove(key);
+        
+        if (pendingXp == null || pendingXp <= 0) {
+            return weapon; // No pending XP to flush
+        }
+        
+        // Add the pending XP to the weapon
+        return this.addXpToItem(weapon, pendingXp);
+    }
+    
+    /**
+     * Clear pending XP for a player's hotbar slot (e.g., if weapon is removed or swapped).
+     */
+    public void clearPendingXp(@Nonnull final PlayerRef playerRef, final byte slot) {
+        final String key = getPendingXpKey(playerRef, slot);
+        this.pendingXpCache.remove(key);
     }
     
     /**
@@ -316,8 +380,14 @@ public class ItemExpService {
     }
 
     /**
-     * Add XP to the player's currently held weapon and update it in their inventory.
-     * Also updates weapon effects on level up.
+     * Add XP to the player's currently held weapon.
+     * 
+     * IMPORTANT: XP is cached in memory and only persisted to the weapon when:
+     * - The weapon levels up
+     * - flushPendingXp() is called (e.g., when durability save triggers)
+     * 
+     * This avoids replacing the weapon in the hotbar on every hit, which would
+     * reset the "ultimate" stat (a game limitation).
      *
      * @param playerRef The player reference
      * @param inventory The player's inventory
@@ -336,28 +406,34 @@ public class ItemExpService {
             return LevelUpResult.failure(); // Nothing in hand
         }
 
-        // Get the slot index so we can replace the item
+        // Get the slot index
         final byte slot = inventory.getActiveHotbarSlot();
         if (slot == -1) {
             return LevelUpResult.failure(); // Invalid slot
         }
 
-        // Get level before adding XP
-        final int levelBefore = this.getItemLevel(currentWeapon);
+        // Get level before adding XP (including any pending XP in the cache)
+        final double currentTotalXp = this.getTotalXpWithPending(currentWeapon, playerRef, slot);
+        final int levelBefore = this.calculateLevelFromXp(currentTotalXp);
         
         // Skip XP gain if already at max level
         if (levelBefore >= this.config.getMaxLevel()) {
             return new LevelUpResult(true, levelBefore, levelBefore); // Success but no change
         }
 
-        // Create new item with added XP
-        ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
+        // Calculate new total XP and level
+        final double newTotalXp = currentTotalXp + xpToAdd;
+        final int levelAfter = this.calculateLevelFromXp(newTotalXp);
 
-        // Calculate new level
-        final int levelAfter = this.getItemLevel(updatedWeapon);
-
-        // If weapon leveled up, update its effects and check for milestones
+        // If weapon leveled up, we MUST persist the XP and update effects
         if (levelAfter > levelBefore) {
+            // First, flush any existing pending XP
+            ItemStack updatedWeapon = this.flushPendingXp(currentWeapon, playerRef, slot);
+            
+            // Now add the new XP
+            updatedWeapon = this.addXpToItem(updatedWeapon, xpToAdd);
+            
+            // Update effects for the new level
             updatedWeapon = this.updateWeaponEffects(updatedWeapon, levelAfter);
             
             // Check if any milestone levels were crossed (can level up multiple times at once)
@@ -388,11 +464,15 @@ public class ItemExpService {
                         newEmbuesToAdd
                 ));
             }
+            
+            // Replace the item in the hotbar (only on level up)
+            final ItemContainer hotbar = inventory.getHotbar();
+            hotbar.setItemStackForSlot((short) slot, updatedWeapon);
+        } else {
+            // No level change - just cache the XP, don't replace the weapon
+            final String key = getPendingXpKey(playerRef, slot);
+            this.pendingXpCache.merge(key, xpToAdd, Double::sum);
         }
-
-        // Replace the item in the hotbar
-        final ItemContainer hotbar = inventory.getHotbar();
-        hotbar.setItemStackForSlot((short) slot, updatedWeapon);
 
         return new LevelUpResult(true, levelBefore, levelAfter);
     }
