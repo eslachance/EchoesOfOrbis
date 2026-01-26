@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.LifeLeechProcessor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -85,15 +86,17 @@ public class WeaponEffectsService {
         // Processor for DAMAGE_FLAT would be similar to DAMAGE_PERCENT
         
         // LIFE_LEECH: Heal percentage of damage dealt
+        // Scales from 2% to 50% over levels
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.LIFE_LEECH)
                         .baseValue(0.02)      // 2% at effect level 1
                         .valuePerLevel(0.02)  // +2% per level
-                        .maxValue(0.25)       // Cap at 25%
-                        .maxLevel(10)
+                        .maxValue(0.50)       // Cap at 50%
+                        .maxLevel(24)
                         .description("Heal {value} of damage dealt")
                         .build()
         );
+        this.registerProcessor(WeaponEffectType.LIFE_LEECH, new LifeLeechProcessor());
         
         // DURABILITY_SAVE: Chance to not lose durability on hit
         // Scales from 10% to 100% over levels 2-25
