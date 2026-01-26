@@ -6,7 +6,9 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.FireOnHitProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.LifeLeechProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.PoisonOnHitProcessor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -112,6 +114,35 @@ public class WeaponEffectsService {
                         .build()
         );
         this.registerProcessor(WeaponEffectType.DURABILITY_SAVE, new DurabilitySaveProcessor());
+        
+        // POISON_ON_HIT: Chance to apply poison damage over time
+        // Scales from 10% chance at level 1 to 50% chance at max level
+        // The poison DoT damage is determined by the game's EntityEffect asset
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.POISON_ON_HIT)
+                        .baseValue(0.10)      // 10% chance at effect level 1
+                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
+                        .maxValue(0.50)       // Cap at 50% chance
+                        .maxLevel(24)
+                        .description("{value} chance to poison on hit")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.POISON_ON_HIT, new PoisonOnHitProcessor());
+        
+        // FIRE_ON_HIT: Chance to apply burn damage over time
+        // Scales from 15% chance at level 1 to 60% chance at max level
+        // The burn DoT deals 5 fire damage/sec for 3 seconds (15 total)
+        // Note: Burn cannot be applied if target is in water (game handles this)
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.FIRE_ON_HIT)
+                        .baseValue(0.15)      // 15% chance at effect level 1
+                        .valuePerLevel(0.019) // +1.9% per level to reach ~60% at level 24
+                        .maxValue(0.60)       // Cap at 60% chance
+                        .maxLevel(24)
+                        .description("{value} chance to burn on hit")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.FIRE_ON_HIT, new FireOnHitProcessor());
         
         // More effects can be registered here or in configuration
     }

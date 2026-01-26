@@ -10,6 +10,7 @@ import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.WeaponParticleService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
@@ -19,6 +20,7 @@ public class EchoesOfOrbis extends JavaPlugin {
     private final Config<EchoesOfOrbisConfig> config;
     private WeaponEffectsService weaponEffectsService;
     private ItemExpService itemExpService;
+    private WeaponParticleService weaponParticleService;
 
     public EchoesOfOrbis(@NonNullDecl JavaPluginInit init) {
         super(init);
@@ -39,10 +41,13 @@ public class EchoesOfOrbis extends JavaPlugin {
         // ItemExpService handles XP/leveling and coordinates with effects service
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
         
+        // WeaponParticleService manages visual particles for embued weapons
+        this.weaponParticleService = new WeaponParticleService(this.itemExpService);
+        
         // Register the damage system that processes combat events
-        // This handles XP gain, weapon effects, and durability save restoration
+        // This handles XP gain, weapon effects, durability save restoration, and weapon particles
         this.getEntityStoreRegistry().registerSystem(
-                (ISystem) new ItemExpDamageSystem(this.itemExpService, cfg)
+                (ISystem) new ItemExpDamageSystem(this.itemExpService, cfg, this.weaponParticleService)
         );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
@@ -51,7 +56,10 @@ public class EchoesOfOrbis extends JavaPlugin {
         System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
         System.out.println("[EOO]:   - DAMAGE_PERCENT: 5% -> 100% (automatic)");
         System.out.println("[EOO]:   - DURABILITY_SAVE: 10% -> 100% (requires embue selection)");
+        System.out.println("[EOO]:   - POISON_ON_HIT: 10% -> 50% chance (requires embue selection)");
+        System.out.println("[EOO]:   - FIRE_ON_HIT: 15% -> 60% chance (requires embue selection)");
         System.out.println("[EOO]: Embue selection available at levels 5, 10, 15, 20, 25");
+        System.out.println("[EOO]: Weapons with Fire/Poison embues show particle effects!");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded, /eoo for UI"));

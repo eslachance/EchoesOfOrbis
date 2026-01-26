@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.WeaponParticleService;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
@@ -36,14 +37,17 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
     private final ItemExpService itemExpService;
     private final EchoesOfOrbisConfig config;
+    private final WeaponParticleService weaponParticleService;
 
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
-            @Nonnull final EchoesOfOrbisConfig config
+            @Nonnull final EchoesOfOrbisConfig config,
+            @Nonnull final WeaponParticleService weaponParticleService
     ) {
         super();
         this.itemExpService = itemExpService;
         this.config = config;
+        this.weaponParticleService = weaponParticleService;
     }
 
     /**
@@ -137,6 +141,15 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             );
         }
         
+        // ==================== SPAWN WEAPON PARTICLES ====================
+        // Show visual particle effects on weapons with fire/poison embues
+        this.weaponParticleService.trySpawnWeaponParticles(
+                playerRef,
+                attackerRef,
+                weapon,
+                commandBuffer
+        );
+        
         // ==================== AWARD XP ====================
         // Calculate XP to award based on original damage dealt
         final float damageDealt = damage.getAmount();
@@ -159,18 +172,22 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
         // Get updated weapon for logging and notifications
         final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
+        final byte activeSlot = inventory.getActiveHotbarSlot();
 
         // Debug: Log XP gain to console
         if (this.config.isDebug()) {
-            final double totalXp = this.itemExpService.getItemXp(updatedWeapon);
-            final double xpToNextLevel = this.itemExpService.getXpToNextLevel(result.getLevelAfter());
+            // Get total XP including any pending (cached) XP
+            final double totalXp = this.itemExpService.getTotalXpWithPending(updatedWeapon, playerRef, activeSlot);
+            // Calculate remaining XP to next level (threshold - current)
+            final double xpForNextLevel = this.itemExpService.getXpRequiredForLevel(result.getLevelAfter() + 1);
+            final double xpRemaining = Math.max(0, xpForNextLevel - totalXp);
             System.out.println(String.format(
-                    "[ItemExp] %s gained %.2f XP | Total: %.2f | Level: %d | XP to next: %.2f",
+                    "[ItemExp] %s gained %.2f XP | Total: %.2f | Level: %d | XP remaining: %.2f",
                     updatedWeapon.getItemId(),
                     xpGained,
                     totalXp,
                     result.getLevelAfter(),
-                    xpToNextLevel
+                    xpRemaining
             ));
         }
 
@@ -182,6 +199,12 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Check for level up
         if (result.didLevelUp()) {
             ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, result.getLevelAfter());
+            
+            // Check for pending embues and notify player
+            final int pendingEmbues = this.itemExpService.getPendingEmbues(updatedWeapon);
+            if (pendingEmbues > 0) {
+                ItemExpNotifications.sendEmbueAvailableNotification(playerRef, pendingEmbues);
+            }
             
             // Log effect summary on level up
             final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();

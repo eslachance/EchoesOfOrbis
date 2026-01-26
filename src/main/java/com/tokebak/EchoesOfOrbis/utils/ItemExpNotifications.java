@@ -21,6 +21,7 @@ public final class ItemExpNotifications {
     private static final Color COLOR_LEVEL_UP = new Color(0xFFD700);   // Gold
     private static final Color COLOR_ITEM_NAME = new Color(0x00BFFF);  // Deep sky blue
     private static final Color COLOR_PROGRESS = new Color(0xAAAAAA);   // Gray
+    private static final Color COLOR_EMBUE = new Color(0x9966FF);      // Purple for embue
 
     // Private constructor - utility class
     private ItemExpNotifications() {}
@@ -111,6 +112,29 @@ public final class ItemExpNotifications {
         );
 
         final Message message = Message.raw(text).color(COLOR_ITEM_NAME);
+        NotificationUtil.sendNotification(packetHandler, message);
+    }
+
+    /**
+     * Send a notification when embues are available for selection.
+     */
+    public static void sendEmbueAvailableNotification(
+            @Nonnull final PlayerRef playerRef,
+            final int embueCount
+    ) {
+        final PacketHandler packetHandler = playerRef.getPacketHandler();
+        if (packetHandler == null) {
+            return;
+        }
+
+        // Format: "2 Embues available! Use /eoo to upgrade!"
+        final String text = String.format(
+                "%d Embue%s available! Use /eoo to upgrade!",
+                embueCount,
+                embueCount == 1 ? "" : "s"
+        );
+
+        final Message message = Message.raw(text).color(COLOR_EMBUE);
         NotificationUtil.sendNotification(packetHandler, message);
     }
 
