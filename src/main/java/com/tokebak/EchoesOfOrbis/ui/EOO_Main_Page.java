@@ -6,12 +6,14 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -105,8 +107,18 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                 uiCommandBuilder.set(sel + " #Effects.Text", weapon.effectsText);
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
                 
-                // TODO: Click events for embue selection need UI fix (Activating event on Button)
-                // For now, embue selection is disabled until we figure out how to make it work
+                // Show embue button if there are pending embues
+                if (weapon.pendingEmbues > 0) {
+                    uiCommandBuilder.set(sel + " #EmbueButton.Visible", true);
+                    uiCommandBuilder.set(sel + " #EmbueButton.Text", "+" + weapon.pendingEmbues + " Embues");
+                    
+                    // Register click event for the embue button
+                    uiEventBuilder.addEventBinding(
+                            CustomUIEventBindingType.Activating,
+                            sel + " #EmbueButton",
+                            EventData.of("Action", "embue").append("WeaponIndex", String.valueOf(i))
+                    );
+                }
             }
         }
     }
@@ -150,13 +162,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     private String buildItemLabel(WeaponInfo weapon) {
         final String name = getDisplayName(weapon.item);
         
-        // Build suffix with category and level
-        String label = name + " [" + weapon.categoryText + "] [Lv. " + weapon.level + "]";
-        if (weapon.pendingEmbues > 0) {
-            label += " [+" + weapon.pendingEmbues + " Embues]";
-        }
-        
-        return label;
+        // Build label with category and level (embues shown in separate button)
+        return name + " [" + weapon.categoryText + "] [Lv. " + weapon.level + "]";
     }
     
     /**
@@ -244,24 +251,31 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             @Nonnull Store<EntityStore> store,
             Data data
     ) {
-        // Handle weapon click for embue selection
-        if (data.clickedWeapon >= 0 && this.weaponsList != null && data.clickedWeapon < this.weaponsList.size()) {
-            final WeaponInfo weapon = this.weaponsList.get(data.clickedWeapon);
-            
-            // Only open selection if there are pending embues
-            if (weapon.pendingEmbues > 0) {
-                final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
-                if (playerComponent != null) {
-                    // Open the embue selection page
-                    final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
-                            this.playerRef,
-                            CustomPageLifetime.CanDismiss,
-                            this.itemExpService,
-                            weapon.containerName,
-                            weapon.slot
-                    );
-                    playerComponent.getPageManager().openCustomPage(ref, store, selectionPage);
+        // Handle embue button click
+        if ("embue".equals(data.action) && data.weaponIndex != null) {
+            try {
+                final int weaponIdx = Integer.parseInt(data.weaponIndex);
+                if (weaponIdx >= 0 && this.weaponsList != null && weaponIdx < this.weaponsList.size()) {
+                    final WeaponInfo weapon = this.weaponsList.get(weaponIdx);
+                    
+                    // Only open selection if there are pending embues
+                    if (weapon.pendingEmbues > 0) {
+                        final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+                        if (playerComponent != null) {
+                            // Open the embue selection page
+                            final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
+                                    this.playerRef,
+                                    CustomPageLifetime.CanDismiss,
+                                    this.itemExpService,
+                                    weapon.containerName,
+                                    weapon.slot
+                            );
+                            playerComponent.getPageManager().openCustomPage(ref, store, selectionPage);
+                        }
+                    }
                 }
+            } catch (NumberFormatException ignored) {
+                // Invalid weapon index
             }
             return;
         }
@@ -271,15 +285,21 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     }
 
     public static class Data {
+        public String action;
+        public String weaponIndex;
+        
         public static final BuilderCodec<Data> CODEC = BuilderCodec
                 .builder(Data.class, Data::new)
                 .append(
-                        new KeyedCodec<>("ClickedWeapon", Codec.INTEGER),
-                        (d, v) -> d.clickedWeapon = v,
-                        d -> d.clickedWeapon
+                        new KeyedCodec<>("Action", Codec.STRING),
+                        (d, v) -> d.action = v,
+                        d -> d.action
+                ).add()
+                .append(
+                        new KeyedCodec<>("WeaponIndex", Codec.STRING),
+                        (d, v) -> d.weaponIndex = v,
+                        d -> d.weaponIndex
                 ).add()
                 .build();
-        
-        public int clickedWeapon = -1;
     }
 }

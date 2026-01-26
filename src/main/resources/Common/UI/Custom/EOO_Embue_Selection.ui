@@ -1,11 +1,23 @@
 $Common = "Common.ui";
 
+@OptionButtonStyle = TextButtonStyle(
+  Default: (Background: #2a2a4e, LabelStyle: (FontSize: 14, TextColor: #88ff88, RenderBold: true)),
+  Hovered: (Background: #3a3a6e, LabelStyle: (FontSize: 14, TextColor: #aaffaa, RenderBold: true)),
+  Pressed: (Background: #1a1a3e, LabelStyle: (FontSize: 14, TextColor: #88ff88, RenderBold: true))
+);
+
+@CancelButtonStyle = TextButtonStyle(
+  Default: (Background: #3d1a1a, LabelStyle: (FontSize: 14, TextColor: #ff6666, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #4d2a2a, LabelStyle: (FontSize: 14, TextColor: #ff8888, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #2d0a0a, LabelStyle: (FontSize: 14, TextColor: #ff6666, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
 Group {
     LayoutMode: Center;
 
     Group #SelectionPanel {
         Background: $Common.@InputBoxBackground;
-        Anchor: (Width: 400, Height: 450);
+        Anchor: (Width: 400, Height: 500);
         LayoutMode: Top;
         Padding: (Full: 15);
 
@@ -31,7 +43,7 @@ Group {
             Anchor: (Width: 370, Top: 15);
             LayoutMode: Top;
 
-            Group #Option1 {
+            Button #Option1 {
                 Background: (Color: #2a2a4e);
                 Anchor: (Width: 370, Height: 80, Bottom: 8);
                 LayoutMode: Top;
@@ -55,7 +67,7 @@ Group {
                 }
             }
 
-            Group #Option2 {
+            Button #Option2 {
                 Background: (Color: #2a2a4e);
                 Anchor: (Width: 370, Height: 80, Bottom: 8);
                 LayoutMode: Top;
@@ -79,7 +91,7 @@ Group {
                 }
             }
 
-            Group #Option3 {
+            Button #Option3 {
                 Background: (Color: #2a2a4e);
                 Anchor: (Width: 370, Height: 80, Bottom: 8);
                 LayoutMode: Top;
@@ -104,10 +116,12 @@ Group {
             }
         }
 
-        Label #CancelButton {
-            Style: (FontSize: 14, Alignment: Center, TextColor: #ff6666);
-            Anchor: (Top: 15);
-            Text: "[Cancel]";
+        Group { Anchor: (Height: 15); }
+
+        TextButton #CancelButton {
+            Text: "Cancel";
+            Anchor: (Width: 120, Height: 36);
+            Style: @CancelButtonStyle;
         }
     }
 }

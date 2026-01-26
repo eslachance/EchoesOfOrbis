@@ -5,7 +5,7 @@ Group {
 
     Group #MainPanel {
         Background: $Common.@InputBoxBackground;
-        Anchor: (Width: 500, Height: 1000);
+        Anchor: (Width: 625, Height: 1000);
         LayoutMode: Top;
 
         Label #Title {
@@ -22,7 +22,7 @@ Group {
         }
 
         Group #ItemListContainer {
-            Anchor: (Width: 480, Top: 5);
+            Anchor: (Width: 605, Top: 5);
             FlexWeight: 1;
             LayoutMode: TopScrolling;
             Padding: (Left: 10, Right: 10);

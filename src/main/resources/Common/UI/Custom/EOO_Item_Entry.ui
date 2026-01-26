@@ -1,14 +1,33 @@
 $Common = "Common.ui";
 
-Button #Entry {
+@EmbueButtonStyle = TextButtonStyle(
+  Default: (Background: #1a2633, LabelStyle: (FontSize: 12, TextColor: #4a9eff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #2a3643, LabelStyle: (FontSize: 12, TextColor: #6ab9ff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #0a1623, LabelStyle: (FontSize: 12, TextColor: #4a9eff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
+Group #Entry {
     Background: (Color: #1a1a2e);
-    Anchor: (Width: 460, Bottom: 6);
+    Anchor: (Width: 585, Bottom: 6);
     LayoutMode: Top;
     Padding: (Full: 10);
 
-    Label #ItemName {
-        Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true);
-        Text: "Item Name [Lv. 1]";
+    Group #HeaderRow {
+        LayoutMode: Left;
+        Anchor: (Height: 22);
+
+        Label #ItemName {
+            Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true);
+            FlexWeight: 1;
+            Text: "Item Name [Lv. 1]";
+        }
+
+        TextButton #EmbueButton {
+            Text: "+1 Embues";
+            Anchor: (Width: 90, Height: 22);
+            Style: @EmbueButtonStyle;
+            Visible: false;
+        }
     }
 
     Label #XpInfo {

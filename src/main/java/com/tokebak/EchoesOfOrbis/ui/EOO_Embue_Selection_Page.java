@@ -117,8 +117,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
                     uiEventBuilder.addEventBinding(
                             CustomUIEventBindingType.Activating, 
                             optionId, 
-                            EventData.of("SelectedOption", String.valueOf(i)),
-                            false
+                            EventData.of("SelectedOption", String.valueOf(i))
                     );
                 }
             } else {
@@ -131,8 +130,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         uiEventBuilder.addEventBinding(
                 CustomUIEventBindingType.Activating, 
                 "#CancelButton", 
-                EventData.of("Cancel", "true"),
-                false
+                EventData.of("Cancel", "true")
         );
     }
     
@@ -267,7 +265,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             Data data
     ) {
         // Handle cancel
-        if (data.cancel) {
+        if ("true".equals(data.cancel)) {
             final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
             if (playerComponent != null) {
                 playerComponent.getPageManager().setPage(ref, store, Page.None);
@@ -276,27 +274,34 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         }
         
         // Handle selection
-        if (data.selectedOption >= 0 && data.selectedOption < 3) {
-            this.selectEffect(data.selectedOption, ref, store);
+        if (data.selectedOption != null) {
+            try {
+                final int optionIndex = Integer.parseInt(data.selectedOption);
+                if (optionIndex >= 0 && optionIndex < 3) {
+                    this.selectEffect(optionIndex, ref, store);
+                }
+            } catch (NumberFormatException ignored) {
+                // Invalid option index
+            }
         }
     }
 
     public static class Data {
+        public String selectedOption;
+        public String cancel;
+        
         public static final BuilderCodec<Data> CODEC = BuilderCodec
                 .builder(Data.class, Data::new)
                 .append(
-                        new KeyedCodec<>("SelectedOption", Codec.INTEGER),
+                        new KeyedCodec<>("SelectedOption", Codec.STRING),
                         (d, v) -> d.selectedOption = v,
                         d -> d.selectedOption
                 ).add()
                 .append(
-                        new KeyedCodec<>("Cancel", Codec.BOOLEAN),
+                        new KeyedCodec<>("Cancel", Codec.STRING),
                         (d, v) -> d.cancel = v,
                         d -> d.cancel
                 ).add()
                 .build();
-        
-        public int selectedOption = -1;
-        public boolean cancel = false;
     }
 }
