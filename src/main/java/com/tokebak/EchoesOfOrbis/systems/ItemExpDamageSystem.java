@@ -21,6 +21,9 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
+import com.hypixel.hytale.server.core.universe.world.World;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -157,9 +160,30 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
 
-        // Get updated weapon for logging and notifications
-        final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
+        // Handle level up - need to swap weapon and manage SignatureEnergy
+        ItemStack updatedWeapon;
         final byte activeSlot = inventory.getActiveHotbarSlot();
+        
+        if (result.needsSwap()) {
+            // Level up occurred - get the updated weapon from result
+            updatedWeapon = result.getUpdatedWeapon();
+            
+            // BONUS: Restore durability to max on level up
+            updatedWeapon = updatedWeapon.withDurability(updatedWeapon.getMaxDurability());
+            
+            // Swap the weapon in hotbar (SignatureEnergy handled at end of method)
+            this.swapWeaponOnLevelUp(
+                    inventory,
+                    result.getSlot(),
+                    updatedWeapon
+            );
+            
+            // Get the weapon from inventory for notifications (same as what we put in)
+            updatedWeapon = inventory.getActiveHotbarItem();
+        } else {
+            // No level up - just get the current weapon
+            updatedWeapon = inventory.getActiveHotbarItem();
+        }
 
         // Debug: Log XP gain to console
         if (this.config.isDebug()) {
@@ -199,6 +223,19 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                     "[ItemExp] Level up! New effects: %s",
                     effectsService.getEffectsSummary(updatedWeapon)
             ));
+            
+            // LEVEL UP BONUS: Max SignatureEnergy (Q meter)
+            // Schedule on world thread to ensure proper client sync
+            final World world = ((EntityStore) store.getExternalData()).getWorld();
+            final Ref<EntityStore> finalAttackerRef = attackerRef;
+            world.execute(() -> {
+                this.maximizeSignatureEnergy(finalAttackerRef, store);
+                System.out.println(String.format(
+                        "[EOO] Level up bonus applied! SignatureEnergy: max=%.0f, current=%.0f",
+                        this.getSignatureEnergyMax(finalAttackerRef, store),
+                        this.getSignatureEnergy(finalAttackerRef, store)
+                ));
+            });
         }
     }
     
@@ -247,17 +284,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         if (shouldRestoreDurability != null && shouldRestoreDurability) {
             // Only restore if this damage cause would lose durability
             if (damage.getCause() != null && damage.getCause().isDurabilityLoss()) {
-                this.restoreWeaponDurability(weapon, inventory, playerRef);
+                this.restoreWeaponDurability(weapon, inventory, playerRef, attackerRef, store);
             }
-        }
-        
-        // Debug log
-        if (this.config.isDebug()) {
-            System.out.println(String.format(
-                    "[ItemExp] Applied effects for %s weapon: %s",
-                    WeaponCategoryUtil.getDisplayName(category),
-                    weapon.getItemId()
-            ));
         }
     }
     
@@ -267,11 +295,14 @@ public class ItemExpDamageSystem extends DamageEventSystem {
      * We add durability BEFORE the system subtracts it, so net effect is 0.
      * 
      * Since we're replacing the weapon anyway, we also flush any pending XP.
+     * We also preserve and restore SignatureEnergy to avoid resetting the Q meter.
      */
     private void restoreWeaponDurability(
             @Nonnull final ItemStack weapon,
             @Nonnull final Inventory inventory,
-            @Nonnull final PlayerRef playerRef
+            @Nonnull final PlayerRef playerRef,
+            @Nonnull final Ref<EntityStore> attackerRef,
+            @Nonnull final Store<EntityStore> store
     ) {
         final var itemConfig = weapon.getItem();
         if (itemConfig == null || itemConfig.getWeapon() == null) {
@@ -297,9 +328,158 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // This counteracts the durability loss that will happen later
         updatedWeapon = updatedWeapon.withIncreasedDurability(durabilityToRestore);
         
-        // Replace in hotbar
+        // Swap the weapon while preserving SignatureEnergy
+        this.swapWeaponPreservingSignature(attackerRef, store, inventory, activeSlot, updatedWeapon);
+    }
+    
+    // ==================== SIGNATURE ENERGY HELPERS ====================
+    
+    /**
+     * Get the current SignatureEnergy value for an entity.
+     * Returns -1 if the stat is not found or entity has no stat map.
+     */
+    @SuppressWarnings("unchecked")
+    private float getSignatureEnergy(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store
+    ) {
+        final int signatureEnergyIndex = EntityStatType.getAssetMap().getIndex("SignatureEnergy");
+        if (signatureEnergyIndex == Integer.MIN_VALUE) {
+            return -1f;
+        }
+        
+        final EntityStatMap statMap = (EntityStatMap) store.getComponent(
+                (Ref) entityRef,
+                EntityStatMap.getComponentType()
+        );
+        
+        if (statMap == null) {
+            return -1f;
+        }
+        
+        final var statValue = statMap.get(signatureEnergyIndex);
+        return statValue != null ? statValue.get() : -1f;
+    }
+    
+    /**
+     * Get the MAX SignatureEnergy value for an entity.
+     * Returns -1 if the stat is not found or entity has no stat map.
+     */
+    @SuppressWarnings("unchecked")
+    private float getSignatureEnergyMax(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store
+    ) {
+        final int signatureEnergyIndex = EntityStatType.getAssetMap().getIndex("SignatureEnergy");
+        if (signatureEnergyIndex == Integer.MIN_VALUE) {
+            return -1f;
+        }
+        
+        final EntityStatMap statMap = (EntityStatMap) store.getComponent(
+                (Ref) entityRef,
+                EntityStatMap.getComponentType()
+        );
+        
+        if (statMap == null) {
+            return -1f;
+        }
+        
+        final var statValue = statMap.get(signatureEnergyIndex);
+        return statValue != null ? statValue.getMax() : -1f;
+    }
+    
+    /**
+     * Set the SignatureEnergy value for an entity.
+     */
+    @SuppressWarnings("unchecked")
+    private void setSignatureEnergy(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store,
+            final float value
+    ) {
+        final int signatureEnergyIndex = EntityStatType.getAssetMap().getIndex("SignatureEnergy");
+        if (signatureEnergyIndex == Integer.MIN_VALUE) {
+            return;
+        }
+        
+        final EntityStatMap statMap = (EntityStatMap) store.getComponent(
+                (Ref) entityRef,
+                EntityStatMap.getComponentType()
+        );
+        
+        if (statMap != null) {
+            statMap.setStatValue(signatureEnergyIndex, value);
+        }
+    }
+    
+    /**
+     * Maximize the SignatureEnergy stat for an entity (fill Q meter to 100%).
+     */
+    @SuppressWarnings("unchecked")
+    private void maximizeSignatureEnergy(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store
+    ) {
+        final int signatureEnergyIndex = EntityStatType.getAssetMap().getIndex("SignatureEnergy");
+        if (signatureEnergyIndex == Integer.MIN_VALUE) {
+            return;
+        }
+        
+        final EntityStatMap statMap = (EntityStatMap) store.getComponent(
+                (Ref) entityRef,
+                EntityStatMap.getComponentType()
+        );
+        
+        if (statMap != null) {
+            statMap.maximizeStatValue(signatureEnergyIndex);
+        }
+    }
+    
+    /**
+     * Swap a weapon in the hotbar while preserving SignatureEnergy.
+     * 
+     * When items are swapped in the hotbar, the game resets SignatureEnergy to 0
+     * (via EntityStatsToClear in the weapon config). This method captures the
+     * current value before the swap, then schedules restore on the world thread.
+     */
+    private void swapWeaponPreservingSignature(
+            @Nonnull final Ref<EntityStore> playerRef,
+            @Nonnull final Store<EntityStore> store,
+            @Nonnull final Inventory inventory,
+            final byte slot,
+            @Nonnull final ItemStack newWeapon
+    ) {
+        // Save current SignatureEnergy before swap
+        final float savedEnergy = this.getSignatureEnergy(playerRef, store);
+        
+        // Do the swap
         final ItemContainer hotbar = inventory.getHotbar();
-        hotbar.setItemStackForSlot((short) activeSlot, updatedWeapon);
+        hotbar.setItemStackForSlot((short) slot, newWeapon);
+        
+        // Restore SignatureEnergy on the world thread (for proper client sync)
+        if (savedEnergy >= 0) {
+            final World world = ((EntityStore) store.getExternalData()).getWorld();
+            world.execute(() -> {
+                this.setSignatureEnergy(playerRef, store, savedEnergy);
+            });
+        }
+    }
+    
+    /**
+     * Swap a weapon on level up.
+     * Just does the swap - SignatureEnergy handling is done separately at the
+     * end of handle() to avoid race conditions with the hotbar change event.
+     */
+    private void swapWeaponOnLevelUp(
+            @Nonnull final Inventory inventory,
+            final byte slot,
+            @Nonnull final ItemStack newWeapon
+    ) {
+        // Do the swap
+        final ItemContainer hotbar = inventory.getHotbar();
+        hotbar.setItemStackForSlot((short) slot, newWeapon);
+        
+        System.out.println("[EOO] Level up: Durability restored to max!");
     }
 
     /**

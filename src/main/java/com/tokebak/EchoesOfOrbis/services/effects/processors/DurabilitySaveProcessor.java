@@ -57,6 +57,10 @@ public class DurabilitySaveProcessor implements EffectProcessor {
                     DurabilitySaveRestoreSystem.RESTORE_DURABILITY, 
                     Boolean.TRUE
             );
+            System.out.println(String.format(
+                    "[WeaponEffect] DURABILITY_SAVE: Saved! (%.0f%% chance, rolled %.2f)",
+                    saveChance * 100, roll
+            ));
         }
     }
 }

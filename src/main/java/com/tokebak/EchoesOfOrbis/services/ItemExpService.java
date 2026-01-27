@@ -5,7 +5,6 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
@@ -465,9 +464,9 @@ public class ItemExpService {
                 ));
             }
             
-            // Replace the item in the hotbar (only on level up)
-            final ItemContainer hotbar = inventory.getHotbar();
-            hotbar.setItemStackForSlot((short) slot, updatedWeapon);
+            // Return the updated weapon - caller is responsible for the hotbar swap
+            // (to properly preserve SignatureEnergy and optionally restore durability)
+            return new LevelUpResult(true, levelBefore, levelAfter, updatedWeapon, slot);
         } else {
             // No level change - just cache the XP, don't replace the weapon
             final String key = getPendingXpKey(playerRef, slot);
@@ -479,16 +478,35 @@ public class ItemExpService {
     
     /**
      * Result of adding XP to a weapon, including level change info.
+     * 
+     * When a level up occurs, the updatedWeapon field contains the new weapon
+     * with updated metadata. The caller is responsible for swapping this into
+     * the hotbar (using a method that preserves SignatureEnergy).
      */
     public static class LevelUpResult {
         private final boolean success;
         private final int levelBefore;
         private final int levelAfter;
+        @Nullable
+        private final ItemStack updatedWeapon;
+        private final byte slot;
         
         public LevelUpResult(final boolean success, final int levelBefore, final int levelAfter) {
+            this(success, levelBefore, levelAfter, null, (byte) -1);
+        }
+        
+        public LevelUpResult(
+                final boolean success, 
+                final int levelBefore, 
+                final int levelAfter,
+                @Nullable final ItemStack updatedWeapon,
+                final byte slot
+        ) {
             this.success = success;
             this.levelBefore = levelBefore;
             this.levelAfter = levelAfter;
+            this.updatedWeapon = updatedWeapon;
+            this.slot = slot;
         }
         
         public static LevelUpResult failure() {
@@ -509,6 +527,31 @@ public class ItemExpService {
         
         public boolean didLevelUp() {
             return this.success && this.levelAfter > this.levelBefore;
+        }
+        
+        /**
+         * Get the updated weapon with new metadata (only set on level up).
+         * The caller should swap this into the hotbar using a method that
+         * preserves SignatureEnergy.
+         */
+        @Nullable
+        public ItemStack getUpdatedWeapon() {
+            return this.updatedWeapon;
+        }
+        
+        /**
+         * Get the hotbar slot where the weapon should be placed.
+         */
+        public byte getSlot() {
+            return this.slot;
+        }
+        
+        /**
+         * Whether the caller needs to swap the weapon in the hotbar.
+         * True when a level up occurred and there's an updated weapon.
+         */
+        public boolean needsSwap() {
+            return this.didLevelUp() && this.updatedWeapon != null;
         }
     }
 
