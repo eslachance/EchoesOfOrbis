@@ -25,6 +25,9 @@ public class EchoesOfOrbisConfig {
     private double minXpForNotification = 1.0;
 
     private boolean debug = true;
+    
+    // SignatureEnergy preservation on hotbar swap
+    private boolean preserveSignatureEnergy = true;
 
     public double getXpPerDamage() {
         return this.xpPerDamage;
@@ -56,6 +59,10 @@ public class EchoesOfOrbisConfig {
 
     public boolean isDebug() {
         return this.debug;
+    }
+    
+    public boolean isPreserveSignatureEnergy() {
+        return this.preserveSignatureEnergy;
     }
 
     // -- Setters (for config file merging) --
@@ -90,6 +97,10 @@ public class EchoesOfOrbisConfig {
 
     public void setDebug(boolean value) {
         this.debug = value;
+    }
+    
+    public void setPreserveSignatureEnergy(boolean value) {
+        this.preserveSignatureEnergy = value;
     }
 
     // Static initializer for the codec
@@ -134,6 +145,11 @@ public class EchoesOfOrbisConfig {
                         new KeyedCodec<>("Debug", Codec.BOOLEAN),
                         (cfg, val) -> cfg.debug = val,
                         cfg -> cfg.debug
+                ).add()
+                .append(
+                        new KeyedCodec<>("PreserveSignatureEnergy", Codec.BOOLEAN),
+                        (cfg, val) -> cfg.preserveSignatureEnergy = val,
+                        cfg -> cfg.preserveSignatureEnergy
                 ).add()
                 .build();
     }
