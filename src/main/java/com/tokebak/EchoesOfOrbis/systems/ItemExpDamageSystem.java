@@ -48,6 +48,13 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     private static final long COMBAT_IDLE_FLUSH_MS = 3000; // 3 seconds
     
     /**
+     * Minimum time between damage events to allow level up (in milliseconds).
+     * If hits are coming faster than this, we're in rapid-fire combat (like an ultimate)
+     * and should delay the level up to avoid interrupting the ability.
+     */
+    private static final long LEVEL_UP_DELAY_THRESHOLD_MS = 100; // 100ms
+    
+    /**
      * Tracks last damage time per player/slot for combat idle detection.
      * Key: playerUUID:slot, Value: timestamp (ms)
      */
@@ -192,8 +199,24 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Cache the XP
         this.itemExpService.addPendingXp(playerRef, activeSlot, xpGained);
         
-        // If level up, flush immediately and apply bonuses
+        // If level up, check if we're in rapid-fire combat - if so, delay the level up
         if (wouldLevelUp) {
+            // Check if hits are coming very fast (rapid-fire, like an ultimate)
+            // If the previous hit was within LEVEL_UP_DELAY_THRESHOLD_MS, delay the level up
+            final boolean isRapidFire = lastDamage != null && (now - lastDamage) < LEVEL_UP_DELAY_THRESHOLD_MS;
+            
+            if (isRapidFire) {
+                // Delay level up - rapid hits indicate an ultimate or charged attack in progress
+                if (this.config.isDebug()) {
+                    System.out.println(String.format(
+                            "[ItemExp] Level up pending! Rapid-fire detected (%dms since last hit, threshold %dms)",
+                            (now - lastDamage), LEVEL_UP_DELAY_THRESHOLD_MS
+                    ));
+                }
+                // Don't do the swap - just cache and wait for a gap in combat
+                return;
+            }
+            
             this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, true);
             final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
             
