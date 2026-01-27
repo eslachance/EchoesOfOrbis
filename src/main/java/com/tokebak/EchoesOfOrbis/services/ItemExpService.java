@@ -52,15 +52,14 @@ public class ItemExpService {
     
     /**
      * Cache of pending XP that hasn't been persisted to weapon metadata yet.
-     * This avoids replacing the weapon in the hotbar on every hit, which would
-     * reset the "ultimate" stat. XP is only persisted when the weapon levels up
-     * or when flushPendingXp() is called.
+     * XP is cached during combat to avoid interrupting abilities (like ultimates).
+     * It gets flushed after a period of combat inactivity or on level up.
      * 
      * Key: playerUUID + ":" + hotbarSlot
      * Value: accumulated XP
      */
     private final Map<String, Double> pendingXpCache = new ConcurrentHashMap<>();
-
+    
     public ItemExpService(
             @Nonnull final EchoesOfOrbisConfig config,
             @Nonnull final WeaponEffectsService effectsService
@@ -72,7 +71,7 @@ public class ItemExpService {
     /**
      * Get the cache key for pending XP.
      */
-    private String getPendingXpKey(@Nonnull final PlayerRef playerRef, final byte slot) {
+    public String getPendingXpKey(@Nonnull final PlayerRef playerRef, final byte slot) {
         return playerRef.getUuid().toString() + ":" + slot;
     }
     
@@ -87,8 +86,24 @@ public class ItemExpService {
     }
     
     /**
+     * Add XP to the pending cache (not persisted yet).
+     */
+    public void addPendingXp(@Nonnull final PlayerRef playerRef, final byte slot, final double xp) {
+        final String key = getPendingXpKey(playerRef, slot);
+        this.pendingXpCache.merge(key, xp, Double::sum);
+    }
+    
+    /**
+     * Get the amount of pending XP for a player/slot.
+     */
+    public double getPendingXp(@Nonnull final PlayerRef playerRef, final byte slot) {
+        final String key = getPendingXpKey(playerRef, slot);
+        final Double pending = this.pendingXpCache.get(key);
+        return pending != null ? pending : 0.0;
+    }
+    
+    /**
      * Flush pending XP for a player's hotbar slot to the weapon and return the updated weapon.
-     * Call this before replacing the weapon in the hotbar (e.g., for durability save).
      * 
      * @param weapon The current weapon
      * @param playerRef The player
@@ -113,7 +128,7 @@ public class ItemExpService {
     }
     
     /**
-     * Clear pending XP for a player's hotbar slot (e.g., if weapon is removed or swapped).
+     * Clear pending XP for a player's hotbar slot without applying it.
      */
     public void clearPendingXp(@Nonnull final PlayerRef playerRef, final byte slot) {
         final String key = getPendingXpKey(playerRef, slot);
@@ -381,12 +396,9 @@ public class ItemExpService {
     /**
      * Add XP to the player's currently held weapon.
      * 
-     * IMPORTANT: XP is cached in memory and only persisted to the weapon when:
-     * - The weapon levels up
-     * - flushPendingXp() is called (e.g., when durability save triggers)
-     * 
-     * This avoids replacing the weapon in the hotbar on every hit, which would
-     * reset the "ultimate" stat (a game limitation).
+     * XP is persisted immediately to avoid data loss on server restart.
+     * The caller is responsible for swapping the weapon in the hotbar
+     * using a method that preserves SignatureEnergy.
      *
      * @param playerRef The player reference
      * @param inventory The player's inventory
@@ -411,9 +423,9 @@ public class ItemExpService {
             return LevelUpResult.failure(); // Invalid slot
         }
 
-        // Get level before adding XP (including any pending XP in the cache)
-        final double currentTotalXp = this.getTotalXpWithPending(currentWeapon, playerRef, slot);
-        final int levelBefore = this.calculateLevelFromXp(currentTotalXp);
+        // Get current XP and level
+        final double currentXp = this.getItemXp(currentWeapon);
+        final int levelBefore = this.calculateLevelFromXp(currentXp);
         
         // Skip XP gain if already at max level
         if (levelBefore >= this.config.getMaxLevel()) {
@@ -421,16 +433,13 @@ public class ItemExpService {
         }
 
         // Calculate new total XP and level
-        final double newTotalXp = currentTotalXp + xpToAdd;
+        final double newTotalXp = currentXp + xpToAdd;
         final int levelAfter = this.calculateLevelFromXp(newTotalXp);
 
-        // If weapon leveled up, we MUST persist the XP and update effects
+        // Add XP to the weapon and handle level up effects if applicable
         if (levelAfter > levelBefore) {
-            // First, flush any existing pending XP
-            ItemStack updatedWeapon = this.flushPendingXp(currentWeapon, playerRef, slot);
-            
-            // Now add the new XP
-            updatedWeapon = this.addXpToItem(updatedWeapon, xpToAdd);
+            // Level up - add XP and update effects
+            ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
             
             // Update effects for the new level
             updatedWeapon = this.updateWeaponEffects(updatedWeapon, levelAfter);
@@ -468,12 +477,13 @@ public class ItemExpService {
             // (to properly preserve SignatureEnergy and optionally restore durability)
             return new LevelUpResult(true, levelBefore, levelAfter, updatedWeapon, slot);
         } else {
-            // No level change - just cache the XP, don't replace the weapon
-            final String key = getPendingXpKey(playerRef, slot);
-            this.pendingXpCache.merge(key, xpToAdd, Double::sum);
+            // No level change - still persist XP immediately to avoid data loss on server restart
+            // Now that we can preserve SignatureEnergy during swaps, there's no reason to cache
+            ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
+            
+            // Return the updated weapon - caller will swap with SignatureEnergy preservation
+            return new LevelUpResult(true, levelBefore, levelAfter, updatedWeapon, slot);
         }
-
-        return new LevelUpResult(true, levelBefore, levelAfter);
     }
     
     /**
@@ -530,7 +540,7 @@ public class ItemExpService {
         }
         
         /**
-         * Get the updated weapon with new metadata (only set on level up).
+         * Get the updated weapon with new metadata.
          * The caller should swap this into the hotbar using a method that
          * preserves SignatureEnergy.
          */
@@ -548,10 +558,10 @@ public class ItemExpService {
         
         /**
          * Whether the caller needs to swap the weapon in the hotbar.
-         * True when a level up occurred and there's an updated weapon.
+         * True when XP was successfully added and there's an updated weapon.
          */
         public boolean needsSwap() {
-            return this.didLevelUp() && this.updatedWeapon != null;
+            return this.success && this.updatedWeapon != null;
         }
     }
 

@@ -39,6 +39,19 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
     private final ItemExpService itemExpService;
     private final EchoesOfOrbisConfig config;
+    
+    /**
+     * Time of inactivity (no damage dealt) before flushing pending XP (in milliseconds).
+     * This prevents weapon swaps from interrupting abilities like ultimates.
+     * XP is cached during active combat and flushed when combat ends.
+     */
+    private static final long COMBAT_IDLE_FLUSH_MS = 3000; // 3 seconds
+    
+    /**
+     * Tracks last damage time per player/slot for combat idle detection.
+     * Key: playerUUID:slot, Value: timestamp (ms)
+     */
+    private final java.util.Map<String, Long> lastDamageTime = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
@@ -115,8 +128,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
 
-        // Get the weapon they're holding
-        final ItemStack weapon = inventory.getActiveHotbarItem();
+        // Get the weapon they're holding (not final - may be updated after idle flush)
+        ItemStack weapon = inventory.getActiveHotbarItem();
         if (weapon == null || !this.itemExpService.canGainXp(weapon)) {
             return; // No weapon or weapon can't gain XP
         }
@@ -140,7 +153,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             );
         }
         
-        // ==================== AWARD XP ====================
+        // ==================== AWARD XP (with combat idle flush) ====================
         // Calculate XP to award based on original damage dealt
         final float damageDealt = damage.getAmount();
         final double xpGained = this.itemExpService.calculateXpFromDamage(damageDealt);
@@ -149,83 +162,57 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
 
-        // Add XP to the weapon (this also updates effects on level up)
-        final ItemExpService.LevelUpResult result = this.itemExpService.addXpToHeldWeapon(
-                playerRef,
-                inventory,
-                xpGained
-        );
-
-        if (!result.isSuccess()) {
-            return;
-        }
-
-        // Handle level up - need to swap weapon and manage SignatureEnergy
-        ItemStack updatedWeapon;
+        // Get slot and check combat idle timing
         final byte activeSlot = inventory.getActiveHotbarSlot();
+        final String playerSlotKey = this.itemExpService.getPendingXpKey(playerRef, activeSlot);
+        final long now = System.currentTimeMillis();
+        final Long lastDamage = this.lastDamageTime.get(playerSlotKey);
+        final boolean wasIdle = lastDamage != null && (now - lastDamage) >= COMBAT_IDLE_FLUSH_MS;
         
-        if (result.needsSwap()) {
-            // Level up occurred - get the updated weapon from result
-            updatedWeapon = result.getUpdatedWeapon();
-            
-            // BONUS: Restore durability to max on level up
-            updatedWeapon = updatedWeapon.withDurability(updatedWeapon.getMaxDurability());
-            
-            // Swap the weapon in hotbar (SignatureEnergy handled at end of method)
-            this.swapWeaponOnLevelUp(
-                    inventory,
-                    result.getSlot(),
-                    updatedWeapon
-            );
-            
-            // Get the weapon from inventory for notifications (same as what we put in)
-            updatedWeapon = inventory.getActiveHotbarItem();
-        } else {
-            // No level up - just get the current weapon
-            updatedWeapon = inventory.getActiveHotbarItem();
+        // Update last damage time
+        this.lastDamageTime.put(playerSlotKey, now);
+        
+        // If we were idle (combat ended), flush any pending XP first
+        if (wasIdle) {
+            final double pendingXp = this.itemExpService.getPendingXp(playerRef, activeSlot);
+            if (pendingXp > 0) {
+                this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, false);
+                // Get the updated weapon after flush
+                weapon = inventory.getActiveHotbarItem();
+            }
         }
-
-        // Debug: Log XP gain to console
-        if (this.config.isDebug()) {
-            // Get total XP including any pending (cached) XP
-            final double totalXp = this.itemExpService.getTotalXpWithPending(updatedWeapon, playerRef, activeSlot);
-            // Calculate remaining XP to next level (threshold - current)
-            final double xpForNextLevel = this.itemExpService.getXpRequiredForLevel(result.getLevelAfter() + 1);
-            final double xpRemaining = Math.max(0, xpForNextLevel - totalXp);
-            System.out.println(String.format(
-                    "[ItemExp] %s gained %.2f XP | Total: %.2f | Level: %d | XP remaining: %.2f",
-                    updatedWeapon.getItemId(),
-                    xpGained,
-                    totalXp,
-                    result.getLevelAfter(),
-                    xpRemaining
-            ));
-        }
-
-        // Send notifications if enabled
-        if (this.config.isShowXpNotifications() && xpGained >= this.config.getMinXpForNotification()) {
-            ItemExpNotifications.sendXpGainNotification(playerRef, xpGained, updatedWeapon, this.itemExpService);
-        }
-
-        // Check for level up
-        if (result.didLevelUp()) {
-            ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, result.getLevelAfter());
+        
+        // Check if this XP gain would cause a level up
+        final double currentXp = this.itemExpService.getTotalXpWithPending(weapon, playerRef, activeSlot);
+        final int currentLevel = this.itemExpService.getItemLevel(weapon);
+        final double totalXpAfter = currentXp + xpGained;
+        final int levelAfter = this.itemExpService.calculateLevelFromXp(totalXpAfter);
+        final boolean wouldLevelUp = levelAfter > currentLevel;
+        
+        // Cache the XP
+        this.itemExpService.addPendingXp(playerRef, activeSlot, xpGained);
+        
+        // If level up, flush immediately and apply bonuses
+        if (wouldLevelUp) {
+            this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, true);
+            final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
             
-            // Check for pending embues and notify player
+            // Send level up notifications
+            ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, levelAfter);
+            
             final int pendingEmbues = this.itemExpService.getPendingEmbues(updatedWeapon);
             if (pendingEmbues > 0) {
                 ItemExpNotifications.sendEmbueAvailableNotification(playerRef, pendingEmbues);
             }
             
-            // Log effect summary on level up
             final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
             System.out.println(String.format(
-                    "[ItemExp] Level up! New effects: %s",
+                    "[ItemExp] Level up! %d -> %d | Effects: %s",
+                    currentLevel, levelAfter,
                     effectsService.getEffectsSummary(updatedWeapon)
             ));
             
             // LEVEL UP BONUS: Max SignatureEnergy (Q meter)
-            // Schedule on world thread to ensure proper client sync
             final World world = ((EntityStore) store.getExternalData()).getWorld();
             final Ref<EntityStore> finalAttackerRef = attackerRef;
             world.execute(() -> {
@@ -236,6 +223,70 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                         this.getSignatureEnergy(finalAttackerRef, store)
                 ));
             });
+            
+            return; // Level up handled, we're done
+        }
+        
+        // No level up - just log if debug
+        if (this.config.isDebug()) {
+            final double pendingTotal = this.itemExpService.getPendingXp(playerRef, activeSlot);
+            System.out.println(String.format(
+                    "[ItemExp] Cached %.2f XP (pending total: %.2f, will flush after %dms idle)",
+                    xpGained, pendingTotal, COMBAT_IDLE_FLUSH_MS
+            ));
+        }
+        
+        // Send XP notification if enabled
+        if (this.config.isShowXpNotifications() && xpGained >= this.config.getMinXpForNotification()) {
+            ItemExpNotifications.sendXpGainNotification(playerRef, xpGained, weapon, this.itemExpService);
+        }
+    }
+    
+    /**
+     * Flush pending XP and swap the weapon in the hotbar.
+     * 
+     * @param isLevelUp If true, apply level-up bonuses (durability restore)
+     */
+    private void flushPendingXpAndSwap(
+            @Nonnull final PlayerRef playerRef,
+            @Nonnull final Ref<EntityStore> attackerRef,
+            @Nonnull final Inventory inventory,
+            @Nonnull final Store<EntityStore> store,
+            final byte slot,
+            @Nonnull ItemStack weapon,
+            final boolean isLevelUp
+    ) {
+        // Flush pending XP to the weapon
+        weapon = this.itemExpService.flushPendingXp(weapon, playerRef, slot);
+        
+        // Update effects for the new level
+        final int newLevel = this.itemExpService.getItemLevel(weapon);
+        weapon = this.itemExpService.updateWeaponEffects(weapon, newLevel);
+        
+        // Check for milestone embues
+        final int currentLevel = this.itemExpService.calculateLevelFromXp(
+                this.itemExpService.getItemXp(weapon) - this.itemExpService.getPendingXp(playerRef, slot)
+        );
+        int newEmbuesToAdd = 0;
+        for (int level = currentLevel + 1; level <= newLevel; level++) {
+            if (ItemExpService.isMilestoneLevel(level)) {
+                newEmbuesToAdd++;
+            }
+        }
+        for (int i = 0; i < newEmbuesToAdd; i++) {
+            weapon = this.itemExpService.addPendingEmbue(weapon);
+        }
+        
+        // Apply level-up bonuses
+        if (isLevelUp) {
+            weapon = weapon.withDurability(weapon.getMaxDurability());
+        }
+        
+        // Swap the weapon, preserving SignatureEnergy
+        this.swapWeaponPreservingSignature(attackerRef, store, inventory, slot, weapon);
+        
+        if (isLevelUp) {
+            System.out.println("[EOO] Level up: Durability restored to max!");
         }
     }
     
@@ -321,12 +372,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             return;
         }
         
-        // Since we're replacing the weapon anyway, flush any pending XP first
-        ItemStack updatedWeapon = this.itemExpService.flushPendingXp(weapon, playerRef, activeSlot);
-        
         // Create a new item with added durability (positive = add)
         // This counteracts the durability loss that will happen later
-        updatedWeapon = updatedWeapon.withIncreasedDurability(durabilityToRestore);
+        final ItemStack updatedWeapon = weapon.withIncreasedDurability(durabilityToRestore);
         
         // Swap the weapon while preserving SignatureEnergy
         this.swapWeaponPreservingSignature(attackerRef, store, inventory, activeSlot, updatedWeapon);
@@ -465,23 +513,6 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         }
     }
     
-    /**
-     * Swap a weapon on level up.
-     * Just does the swap - SignatureEnergy handling is done separately at the
-     * end of handle() to avoid race conditions with the hotbar change event.
-     */
-    private void swapWeaponOnLevelUp(
-            @Nonnull final Inventory inventory,
-            final byte slot,
-            @Nonnull final ItemStack newWeapon
-    ) {
-        // Do the swap
-        final ItemContainer hotbar = inventory.getHotbar();
-        hotbar.setItemStackForSlot((short) slot, newWeapon);
-        
-        System.out.println("[EOO] Level up: Durability restored to max!");
-    }
-
     /**
      * Query that determines which entities this system processes.
      * Query.any() means all entities - we filter inside handle().
