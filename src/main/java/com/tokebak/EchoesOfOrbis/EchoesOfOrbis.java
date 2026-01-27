@@ -12,7 +12,6 @@ import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
-import com.tokebak.EchoesOfOrbis.systems.SignatureEnergyPreservationSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 public class EchoesOfOrbis extends JavaPlugin {
@@ -20,7 +19,6 @@ public class EchoesOfOrbis extends JavaPlugin {
     private final Config<EchoesOfOrbisConfig> config;
     private WeaponEffectsService weaponEffectsService;
     private ItemExpService itemExpService;
-    private SignatureEnergyPreservationSystem signatureEnergySystem;
 
     public EchoesOfOrbis(@NonNullDecl JavaPluginInit init) {
         super(init);
@@ -41,10 +39,6 @@ public class EchoesOfOrbis extends JavaPlugin {
         // ItemExpService handles XP/leveling and coordinates with effects service
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
         
-        // Initialize SignatureEnergy preservation system (hotbar swap energy retention)
-        // Must be created before damage system so it can be wired up
-        this.signatureEnergySystem = new SignatureEnergyPreservationSystem(cfg, this.itemExpService);
-        
         // Register the damage system that processes combat events
         // This handles XP gain, weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
@@ -52,10 +46,6 @@ public class EchoesOfOrbis extends JavaPlugin {
         );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
-        
-        // Register the SignatureEnergy preservation system as a ticking system
-        // This polls for hotbar slot changes every tick (most reliable approach)
-        this.getEntityStoreRegistry().registerSystem((ISystem) this.signatureEnergySystem);
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
         System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
