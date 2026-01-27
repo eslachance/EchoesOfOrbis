@@ -242,6 +242,8 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             case FIRE_ON_HIT -> "Chance to set enemies on fire";
             case POISON_ON_HIT -> "Chance to poison enemies";
             case STUN_ON_HIT -> "Chance to stun enemies";
+            case SLOW_ON_HIT -> "Chance to slow enemy movement";
+            case FREEZE_ON_HIT -> "Chance to freeze enemies in place";
             case BLEEDING -> "Bonus damage to bleeding targets";
             case AMMO_SAVE -> "Chance to not consume ammo";
             case MULTISHOT -> "Chance to fire extra projectiles";

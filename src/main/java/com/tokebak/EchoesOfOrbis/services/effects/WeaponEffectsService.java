@@ -7,8 +7,10 @@ import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProces
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.FireOnHitProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.FreezeOnHitProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.LifeLeechProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.PoisonOnHitProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.SlowOnHitProcessor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -143,6 +145,34 @@ public class WeaponEffectsService {
                         .build()
         );
         this.registerProcessor(WeaponEffectType.FIRE_ON_HIT, new FireOnHitProcessor());
+        
+        // SLOW_ON_HIT: Chance to slow the target's movement
+        // Scales from 10% chance at level 1 to 50% chance at max level
+        // Slow reduces movement speed by 50% for 10 seconds
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.SLOW_ON_HIT)
+                        .baseValue(0.10)      // 10% chance at effect level 1
+                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
+                        .maxValue(0.50)       // Cap at 50% chance
+                        .maxLevel(24)
+                        .description("{value} chance to slow on hit")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.SLOW_ON_HIT, new SlowOnHitProcessor());
+        
+        // FREEZE_ON_HIT: Chance to freeze (immobilize) the target
+        // Scales from 5% chance at level 1 to 25% chance at max level
+        // Freeze completely stops movement - very powerful, so lower chance
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.FREEZE_ON_HIT)
+                        .baseValue(0.05)      // 5% chance at effect level 1
+                        .valuePerLevel(0.0083) // +0.83% per level to reach ~25% at level 24
+                        .maxValue(0.25)       // Cap at 25% chance
+                        .maxLevel(24)
+                        .description("{value} chance to freeze on hit")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.FREEZE_ON_HIT, new FreezeOnHitProcessor());
         
         // More effects can be registered here or in configuration
     }
@@ -473,6 +503,11 @@ public class WeaponEffectsService {
         for (final WeaponEffectType type : WeaponEffectType.values()) {
             // Skip DAMAGE_PERCENT - it's always automatic
             if (type == WeaponEffectType.DAMAGE_PERCENT) {
+                continue;
+            }
+            
+            // Skip FREEZE_ON_HIT - disabled (effect not working on mobs)
+            if (type == WeaponEffectType.FREEZE_ON_HIT) {
                 continue;
             }
             

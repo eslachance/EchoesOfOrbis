@@ -70,6 +70,18 @@ public enum WeaponEffectType {
     STUN_ON_HIT("stun_on_hit", WeaponCategory.melee()),
     
     /**
+     * Chance to slow the target's movement speed.
+     * Only for physical/melee weapons.
+     */
+    SLOW_ON_HIT("slow_on_hit", WeaponCategory.melee()),
+    
+    /**
+     * Chance to freeze the target (immobilize).
+     * Only for physical/melee weapons.
+     */
+    FREEZE_ON_HIT("freeze_on_hit", WeaponCategory.melee()),
+    
+    /**
      * Bonus damage to bleeding targets.
      * Only for physical/melee weapons.
      */

@@ -50,9 +50,11 @@ public class EchoesOfOrbis extends JavaPlugin {
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
         System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
         System.out.println("[EOO]:   - DAMAGE_PERCENT: 5% -> 100% (automatic)");
-        System.out.println("[EOO]:   - DURABILITY_SAVE: 10% -> 100% (requires embue selection)");
-        System.out.println("[EOO]:   - POISON_ON_HIT: 10% -> 50% chance (requires embue selection)");
-        System.out.println("[EOO]:   - FIRE_ON_HIT: 15% -> 60% chance (requires embue selection)");
+        System.out.println("[EOO]:   - DURABILITY_SAVE: 10% -> 100% (embue selection)");
+        System.out.println("[EOO]:   - POISON_ON_HIT: 10% -> 50% chance (embue selection)");
+        System.out.println("[EOO]:   - FIRE_ON_HIT: 15% -> 60% chance (embue selection)");
+        System.out.println("[EOO]:   - SLOW_ON_HIT: 10% -> 50% chance (embue selection)");
+        System.out.println("[EOO]:   - FREEZE_ON_HIT: 5% -> 25% chance (DISABLED)");
         System.out.println("[EOO]: Embue selection available at levels 5, 10, 15, 20, 25");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
