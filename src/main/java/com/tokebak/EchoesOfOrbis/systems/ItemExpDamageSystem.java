@@ -51,8 +51,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
      * Minimum time between damage events to allow level up (in milliseconds).
      * If hits are coming faster than this, we're in rapid-fire combat (like an ultimate)
      * and should delay the level up to avoid interrupting the ability.
+     * 50ms is very fast - only ultimates/charged attacks hit this rate.
      */
-    private static final long LEVEL_UP_DELAY_THRESHOLD_MS = 100; // 100ms
+    private static final long LEVEL_UP_DELAY_THRESHOLD_MS = 50; // 50ms
     
     /**
      * Tracks last damage time per player/slot for combat idle detection.
@@ -207,11 +208,16 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             
             if (isRapidFire) {
                 // Delay level up - rapid hits indicate an ultimate or charged attack in progress
+                final double pendingTotal = this.itemExpService.getPendingXp(playerRef, activeSlot);
                 if (this.config.isDebug()) {
                     System.out.println(String.format(
-                            "[ItemExp] Level up pending! Rapid-fire detected (%dms since last hit, threshold %dms)",
-                            (now - lastDamage), LEVEL_UP_DELAY_THRESHOLD_MS
+                            "[ItemExp] +%.2f XP (pending: %.2f) | LEVEL UP QUEUED %d->%d (rapid-fire %dms)",
+                            xpGained, pendingTotal, currentLevel, levelAfter, (now - lastDamage)
                     ));
+                }
+                // Send XP notification even when delaying level up
+                if (this.config.isShowXpNotifications() && xpGained >= this.config.getMinXpForNotification()) {
+                    ItemExpNotifications.sendXpGainNotification(playerRef, xpGained, weapon, this.itemExpService);
                 }
                 // Don't do the swap - just cache and wait for a gap in combat
                 return;
@@ -279,26 +285,53 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             @Nonnull ItemStack weapon,
             final boolean isLevelUp
     ) {
+        // Capture level BEFORE flushing XP (so we know which milestone levels were crossed)
+        final int levelBefore = this.itemExpService.getItemLevel(weapon);
+        final double xpBefore = this.itemExpService.getItemXp(weapon);
+        final double pendingXp = this.itemExpService.getPendingXp(playerRef, slot);
+        
+        System.out.println(String.format(
+                "[EOO] flushPendingXpAndSwap: BEFORE flush - Level=%d, StoredXP=%.2f, PendingXP=%.2f",
+                levelBefore, xpBefore, pendingXp
+        ));
+        
         // Flush pending XP to the weapon
         weapon = this.itemExpService.flushPendingXp(weapon, playerRef, slot);
         
-        // Update effects for the new level
-        final int newLevel = this.itemExpService.getItemLevel(weapon);
-        weapon = this.itemExpService.updateWeaponEffects(weapon, newLevel);
+        // Get the new level AFTER flushing
+        final int levelAfter = this.itemExpService.getItemLevel(weapon);
+        final double xpAfter = this.itemExpService.getItemXp(weapon);
         
-        // Check for milestone embues
-        final int currentLevel = this.itemExpService.calculateLevelFromXp(
-                this.itemExpService.getItemXp(weapon) - this.itemExpService.getPendingXp(playerRef, slot)
-        );
+        System.out.println(String.format(
+                "[EOO] flushPendingXpAndSwap: AFTER flush - Level=%d, StoredXP=%.2f, isLevelUp=%s",
+                levelAfter, xpAfter, isLevelUp
+        ));
+        
+        // Update effects for the new level
+        weapon = this.itemExpService.updateWeaponEffects(weapon, levelAfter);
+        
+        // Check for milestone embues (any milestone levels crossed between before and after)
+        // Milestones are: 5, 10, 15, 20, 25
         int newEmbuesToAdd = 0;
-        for (int level = currentLevel + 1; level <= newLevel; level++) {
-            if (ItemExpService.isMilestoneLevel(level)) {
+        System.out.println(String.format(
+                "[EOO] Checking milestones from level %d to %d (milestones: 5,10,15,20,25)",
+                levelBefore + 1, levelAfter
+        ));
+        for (int level = levelBefore + 1; level <= levelAfter; level++) {
+            final boolean isMilestone = ItemExpService.isMilestoneLevel(level);
+            System.out.println(String.format("[EOO] Level %d - isMilestone=%s", level, isMilestone));
+            if (isMilestone) {
                 newEmbuesToAdd++;
             }
         }
+        System.out.println(String.format("[EOO] Total embues to add: %d", newEmbuesToAdd));
         for (int i = 0; i < newEmbuesToAdd; i++) {
             weapon = this.itemExpService.addPendingEmbue(weapon);
         }
+        
+        // Log final pending embues count
+        final int finalPendingEmbues = this.itemExpService.getPendingEmbues(weapon);
+        System.out.println(String.format("[EOO] After adding embues: pendingEmbues=%d", finalPendingEmbues));
         
         // Apply level-up bonuses
         if (isLevelUp) {

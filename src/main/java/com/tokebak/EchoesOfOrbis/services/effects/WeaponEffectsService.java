@@ -9,6 +9,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.FireOnHitProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.FreezeOnHitProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.LifeLeechProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.processors.MultishotProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.PoisonOnHitProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.SlowOnHitProcessor;
 import java.util.ArrayList;
@@ -174,6 +175,22 @@ public class WeaponEffectsService {
         );
         this.registerProcessor(WeaponEffectType.FREEZE_ON_HIT, new FreezeOnHitProcessor());
         
+        // MULTISHOT: Chance to fire an additional projectile on hit
+        // Only for projectile weapons (bows, crossbows, guns)
+        // Scales from 10% chance at level 1 to 50% chance at max level
+        // The extra projectile is fired from the attacker toward the target
+        // and does NOT consume ammo
+        this.registerDefinition(
+                WeaponEffectDefinition.builder(WeaponEffectType.MULTISHOT)
+                        .baseValue(0.10)      // 10% chance at effect level 1
+                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
+                        .maxValue(0.50)       // Cap at 50% chance
+                        .maxLevel(24)
+                        .description("{value} chance for extra projectile")
+                        .build()
+        );
+        this.registerProcessor(WeaponEffectType.MULTISHOT, new MultishotProcessor());
+        
         // More effects can be registered here or in configuration
     }
     
@@ -298,6 +315,32 @@ public class WeaponEffectsService {
         if (!found) {
             effects.add(effect);
         }
+        
+        // Save back to metadata
+        return weapon.withMetadata(
+                META_KEY_EFFECTS,
+                EFFECTS_CODEC,
+                effects.toArray(new WeaponEffectInstance[0])
+        );
+    }
+    
+    /**
+     * Remove an effect from a weapon.
+     * Returns a new ItemStack with the effect removed.
+     * 
+     * @param weapon The weapon to modify
+     * @param type The effect type to remove
+     * @return New ItemStack with updated metadata
+     */
+    @Nonnull
+    public ItemStack removeEffect(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final WeaponEffectType type
+    ) {
+        final List<WeaponEffectInstance> effects = this.getEffects(weapon);
+        
+        // Remove the effect if it exists
+        effects.removeIf(effect -> effect.getType() == type);
         
         // Save back to metadata
         return weapon.withMetadata(

@@ -175,7 +175,12 @@ public class ItemExpService {
     @Nonnull
     public ItemStack addPendingEmbue(@Nonnull final ItemStack item) {
         final int current = this.getPendingEmbues(item);
-        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, current + 1);
+        final int newCount = current + 1;
+        System.out.println(String.format(
+                "[EOO] addPendingEmbue: %s | %d -> %d pending embues",
+                item.getItemId(), current, newCount
+        ));
+        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, newCount);
     }
     
     /**

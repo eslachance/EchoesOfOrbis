@@ -6,6 +6,12 @@ $Common = "Common.ui";
   Pressed: (Background: #0a1623, LabelStyle: (FontSize: 12, TextColor: #4a9eff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
 );
 
+@DebugButtonStyle = TextButtonStyle(
+  Default: (Background: #3d2e1a, LabelStyle: (FontSize: 11, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #4d3e2a, LabelStyle: (FontSize: 11, TextColor: #ffcc6a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #2d1e0a, LabelStyle: (FontSize: 11, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
 Group #Entry {
     Background: (Color: #1a1a2e);
     Anchor: (Width: 585, Bottom: 6);
@@ -26,6 +32,13 @@ Group #Entry {
             Text: "+1 Embues";
             Anchor: (Width: 90, Height: 22);
             Style: @EmbueButtonStyle;
+            Visible: false;
+        }
+
+        TextButton #DebugButton {
+            Text: "Debug";
+            Anchor: (Width: 60, Height: 22);
+            Style: @DebugButtonStyle;
             Visible: false;
         }
     }

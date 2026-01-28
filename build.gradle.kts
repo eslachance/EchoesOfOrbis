@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("com.gradleup.shadow") version "9.3.1"
-    id("app.ultradev.hytalegradle") version "2.0.0"
+    id("app.ultradev.hytalegradle") version "2.0.1"
 }
 
 group = "tokebak"

@@ -5,6 +5,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
@@ -82,6 +83,9 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
         // Update item count
         uiCommandBuilder.set("#ItemCount.Text", this.weaponsList.size() + " items found");
+        
+        // Check if player is in creative mode (for debug button visibility)
+        final boolean isCreativeMode = playerComponent.getGameMode() == GameMode.Creative;
 
         // Add an entry for each weapon
         for (int i = 0; i < this.weaponsList.size(); i++) {
@@ -108,9 +112,14 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
                 
                 // Show embue button if there are pending embues
+                System.out.println(String.format(
+                        "[EOO UI] %s: Level=%d, PendingEmbues=%d",
+                        weapon.item.getItemId(), weapon.level, weapon.pendingEmbues
+                ));
                 if (weapon.pendingEmbues > 0) {
                     uiCommandBuilder.set(sel + " #EmbueButton.Visible", true);
                     uiCommandBuilder.set(sel + " #EmbueButton.Text", "+" + weapon.pendingEmbues + " Embues");
+                    System.out.println("[EOO UI] Showing embue button for " + weapon.item.getItemId());
                     
                     // Register click event for the embue button
                     uiEventBuilder.addEventBinding(
@@ -119,6 +128,18 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                             EventData.of("Action", "embue").append("WeaponIndex", String.valueOf(i))
                     );
                 }
+            }
+            
+            // Show debug button in creative mode (for all weapons, used or unused)
+            if (isCreativeMode) {
+                uiCommandBuilder.set(sel + " #DebugButton.Visible", true);
+                
+                // Register click event for the debug button
+                uiEventBuilder.addEventBinding(
+                        CustomUIEventBindingType.Activating,
+                        sel + " #DebugButton",
+                        EventData.of("Action", "debug").append("WeaponIndex", String.valueOf(i))
+                );
             }
         }
     }
@@ -272,6 +293,32 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                             );
                             playerComponent.getPageManager().openCustomPage(ref, store, selectionPage);
                         }
+                    }
+                }
+            } catch (NumberFormatException ignored) {
+                // Invalid weapon index
+            }
+            return;
+        }
+        
+        // Handle debug button click (creative mode only)
+        if ("debug".equals(data.action) && data.weaponIndex != null) {
+            try {
+                final int weaponIdx = Integer.parseInt(data.weaponIndex);
+                if (weaponIdx >= 0 && this.weaponsList != null && weaponIdx < this.weaponsList.size()) {
+                    final WeaponInfo weapon = this.weaponsList.get(weaponIdx);
+                    final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+                    
+                    if (playerComponent != null && playerComponent.getGameMode() == GameMode.Creative) {
+                        // Open the debug effects page
+                        final EOO_Debug_Effects_Page debugPage = new EOO_Debug_Effects_Page(
+                                this.playerRef,
+                                CustomPageLifetime.CanDismiss,
+                                this.itemExpService,
+                                weapon.containerName,
+                                weapon.slot
+                        );
+                        playerComponent.getPageManager().openCustomPage(ref, store, debugPage);
                     }
                 }
             } catch (NumberFormatException ignored) {
