@@ -44,20 +44,22 @@ public class MultishotProcessor implements EffectProcessor {
     
     /**
      * Projectile asset names to try, in order of preference.
-     * These are derived from common arrow item patterns.
+     * Arrow_FullCharge is the player's fully-charged bow shot.
      */
     private static final String[] PROJECTILE_ASSET_NAMES = {
-            // Try exact matches first
+            // Player arrow assets (charge-based)
+            "Arrow_FullCharge",  // Best - matches fully charged bow shot
+            "Arrow_HalfCharge",
+            "Arrow_NoCharge",
+            // Elemental variants
+            "Arrow_Fire",
+            "Arrow_Frost",
+            // Legacy/fallback names
             "Arrow_Crude",
             "Arrow_Basic", 
             "Arrow_Iron",
-            "Arrow_Steel",
             "Arrow",
-            // Crossbow bolts
-            "Bolt_Crude",
-            "Bolt_Basic",
-            "Bolt",
-            // Generic projectiles
+            // Generic projectiles (last resort)
             "Projectile",
     };
     
@@ -87,6 +89,45 @@ public class MultishotProcessor implements EffectProcessor {
     private final Map<Integer, Long> attackerCooldowns = new java.util.HashMap<>();
     private long lastCleanup = 0;
     private static final long CLEANUP_INTERVAL_MS = 60000;
+    
+    /**
+     * Tracks recent multishot fires to prevent the extra arrow from triggering other effects.
+     * Key: attacker ref hashCode, Value: timestamp when multishot fired
+     */
+    private static final Map<Integer, Long> recentMultishotFires = new java.util.concurrent.ConcurrentHashMap<>();
+    
+    /**
+     * Window in milliseconds after a multishot fires where subsequent damage
+     * from the same attacker should not trigger additional effects.
+     * This prevents the multishot arrow from proccing DAMAGE_PERCENT etc.
+     */
+    private static final long MULTISHOT_EFFECT_BLOCK_WINDOW_MS = 1000;
+    
+    /**
+     * Minimum time after multishot fires before we start blocking effects.
+     * This ensures the ORIGINAL damage event still gets its effects processed,
+     * but the multishot arrow's damage (which arrives later) is blocked.
+     */
+    private static final long MULTISHOT_EFFECT_BLOCK_MIN_MS = 50;
+    
+    /**
+     * Check if damage from this attacker should skip other weapon effects.
+     * Called by other processors (like DamagePercentProcessor) to avoid
+     * the multishot arrow triggering bonus effects.
+     * 
+     * @param attackerRefHash The hashCode of the attacker's entity ref
+     * @return true if this damage is likely from a multishot arrow and should skip effects
+     */
+    public static boolean shouldSkipEffectsForMultishot(final int attackerRefHash) {
+        final Long lastFire = recentMultishotFires.get(attackerRefHash);
+        if (lastFire == null) {
+            return false;
+        }
+        final long elapsed = System.currentTimeMillis() - lastFire;
+        // Only skip if enough time has passed (arrow had time to fly and hit)
+        // but not too much time (window expired)
+        return elapsed >= MULTISHOT_EFFECT_BLOCK_MIN_MS && elapsed < MULTISHOT_EFFECT_BLOCK_WINDOW_MS;
+    }
     
     @Override
     public void onDamageDealt(
@@ -127,8 +168,8 @@ public class MultishotProcessor implements EffectProcessor {
             return; // Still on cooldown
         }
         
-        // Get the projectile asset name - try from player's arrows first, then fallback
-        final String projectileAssetName = this.getProjectileAssetName(context);
+        // Get the projectile asset name based on charge level (inferred from damage)
+        final String projectileAssetName = this.getProjectileAssetForCharge(context);
         if (projectileAssetName == null) {
             System.out.println("[WeaponEffect] MULTISHOT: No valid projectile asset found");
             return;
@@ -258,6 +299,9 @@ public class MultishotProcessor implements EffectProcessor {
             this.attackerCooldowns.put(attackerKey, now);
             this.cachedProjectileAsset = projectileAssetName;
             
+            // Record this multishot fire so other effects don't proc on the extra arrow
+            recentMultishotFires.put(attackerKey, now);
+            
             System.out.println(String.format(
                     "[WeaponEffect] MULTISHOT: Fired extra %s (%.0f%% chance)",
                     projectileAssetName,
@@ -271,7 +315,30 @@ public class MultishotProcessor implements EffectProcessor {
     }
     
     /**
-     * Get a projectile asset name to use.
+     * The default arrow asset for multishot.
+     * Arrow_FullCharge provides good velocity and damage.
+     */
+    private static final String MULTISHOT_ARROW_ASSET = "Arrow_FullCharge";
+    
+    /**
+     * Get the projectile asset for multishot arrows.
+     * Uses Arrow_HalfCharge as a balanced middle ground.
+     */
+    @Nullable
+    private String getProjectileAssetForCharge(@Nonnull final EffectContext context) {
+        // Check if Arrow_HalfCharge exists
+        final Projectile projectile = (Projectile) Projectile.getAssetMap().getAsset(MULTISHOT_ARROW_ASSET);
+        if (projectile != null) {
+            return MULTISHOT_ARROW_ASSET;
+        }
+        
+        // Fallback to generic lookup if not found
+        System.out.println("[WeaponEffect] MULTISHOT: Arrow_HalfCharge not found, falling back");
+        return this.getProjectileAssetName(context);
+    }
+    
+    /**
+     * Get a projectile asset name to use (fallback).
      * First tries to derive from player's arrow items, then falls back to defaults.
      */
     @Nullable
@@ -296,30 +363,38 @@ public class MultishotProcessor implements EffectProcessor {
         if (!this.lookupAttempted) {
             this.lookupAttempted = true;
             
-            // FIRST: Enumerate ALL available projectile assets so we can find the right one
-            System.out.println("[WeaponEffect] MULTISHOT: Enumerating ALL available projectile assets...");
+            // FIRST: Check if Arrow_FullCharge exists (the ideal player arrow)
+            System.out.println("[WeaponEffect] MULTISHOT: Looking for Arrow_FullCharge...");
+            final Projectile fullChargeArrow = (Projectile) Projectile.getAssetMap().getAsset("Arrow_FullCharge");
+            if (fullChargeArrow != null) {
+                System.out.println("[WeaponEffect] MULTISHOT: Found Arrow_FullCharge - using it!");
+                this.cachedProjectileAsset = "Arrow_FullCharge";
+                return "Arrow_FullCharge";
+            }
+            
+            // Fallback: enumerate and find best match
+            System.out.println("[WeaponEffect] MULTISHOT: Arrow_FullCharge not found, enumerating all...");
             try {
                 final Map<?, ?> allProjectiles = Projectile.getAssetMap().getAssetMap();
                 System.out.println("[WeaponEffect] MULTISHOT: Found " + allProjectiles.size() + " total projectile assets:");
                 
-                String arrowAsset = null;
+                String bestArrow = null;
                 for (final Object key : allProjectiles.keySet()) {
                     final String assetId = key.toString();
                     System.out.println("  - " + assetId);
                     
-                    // Prefer anything with "Arrow" in the name
-                    if (assetId.toLowerCase().contains("arrow")) {
-                        if (arrowAsset == null) {
-                            arrowAsset = assetId;
-                        }
+                    // Prefer player arrows (Arrow_*Charge) over NPC arrows
+                    if (assetId.equals("Arrow_FullCharge") || assetId.equals("Arrow_HalfCharge") || assetId.equals("Arrow_NoCharge")) {
+                        bestArrow = assetId;
+                    } else if (bestArrow == null && assetId.startsWith("Arrow_")) {
+                        bestArrow = assetId;
                     }
                 }
                 
-                // If we found an arrow-specific asset, use that instead of generic "Projectile"
-                if (arrowAsset != null) {
-                    System.out.println("[WeaponEffect] MULTISHOT: Using arrow asset: " + arrowAsset);
-                    this.cachedProjectileAsset = arrowAsset;
-                    return arrowAsset;
+                if (bestArrow != null) {
+                    System.out.println("[WeaponEffect] MULTISHOT: Using arrow asset: " + bestArrow);
+                    this.cachedProjectileAsset = bestArrow;
+                    return bestArrow;
                 }
             } catch (final Exception e) {
                 System.out.println("[WeaponEffect] MULTISHOT: Error enumerating: " + e.getMessage());
@@ -532,6 +607,15 @@ public class MultishotProcessor implements EffectProcessor {
             final Map.Entry<Integer, Long> entry = it.next();
             if (now - entry.getValue() > MULTISHOT_COOLDOWN_MS * 10) {
                 it.remove();
+            }
+        }
+        
+        // Also clean up the multishot fire tracking
+        final java.util.Iterator<Map.Entry<Integer, Long>> fireIt = recentMultishotFires.entrySet().iterator();
+        while (fireIt.hasNext()) {
+            final Map.Entry<Integer, Long> entry = fireIt.next();
+            if (now - entry.getValue() > MULTISHOT_EFFECT_BLOCK_WINDOW_MS * 2) {
+                fireIt.remove();
             }
         }
     }

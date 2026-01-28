@@ -251,13 +251,18 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             this.category = WeaponCategoryUtil.determineCategory(null, item);
             this.categoryText = WeaponCategoryUtil.getDisplayName(this.category);
 
-            final double xpForCurrent = itemExpService.getXpRequiredForLevel(level);
-            final double xpForNext = itemExpService.getXpRequiredForLevel(level + 1);
-            final double currentXp = this.totalXp - xpForCurrent;
-            final double xpNeeded = xpForNext - xpForCurrent;
-            final double percent = xpNeeded > 0 ? (currentXp / xpNeeded) * 100 : 0;
+            // Check if at max level
+            if (this.level >= itemExpService.getMaxLevel()) {
+                this.xpText = "XP: -/- (MAX)";
+            } else {
+                final double xpForCurrent = itemExpService.getXpRequiredForLevel(level);
+                final double xpForNext = itemExpService.getXpRequiredForLevel(level + 1);
+                final double currentXp = this.totalXp - xpForCurrent;
+                final double xpNeeded = xpForNext - xpForCurrent;
+                final double percent = xpNeeded > 0 ? (currentXp / xpNeeded) * 100 : 0;
 
-            this.xpText = String.format("XP: %.0f / %.0f (%.0f%%)", currentXp, xpNeeded, percent);
+                this.xpText = String.format("XP: %.0f / %.0f (%.0f%%)", currentXp, xpNeeded, percent);
+            }
 
             final String effects = itemExpService.getEffectsService().getEffectsSummary(item);
             this.effectsText = effects.isEmpty() ? "Effects: None" : "Effects: " + effects;

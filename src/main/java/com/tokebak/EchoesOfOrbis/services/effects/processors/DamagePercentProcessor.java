@@ -42,6 +42,12 @@ public class DamagePercentProcessor implements EffectProcessor {
             @Nonnull final WeaponEffectInstance instance,
             @Nonnull final WeaponEffectDefinition definition
     ) {
+        // Skip if this damage is from a multishot arrow (prevents double-dipping)
+        final int attackerKey = context.getAttackerRef().hashCode();
+        if (MultishotProcessor.shouldSkipEffectsForMultishot(attackerKey)) {
+            return;
+        }
+        
         // Calculate bonus damage percentage based on effect level
         final double percentBonus = definition.calculateValue(instance.getLevel());
         

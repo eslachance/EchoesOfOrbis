@@ -352,6 +352,20 @@ public class ItemExpService {
         }
         return this.getXpRequiredForLevel(currentLevel + 1) - this.getXpRequiredForLevel(currentLevel);
     }
+    
+    /**
+     * Get the maximum level a weapon can reach.
+     */
+    public int getMaxLevel() {
+        return this.config.getMaxLevel();
+    }
+    
+    /**
+     * Check if a weapon is at max level.
+     */
+    public boolean isAtMaxLevel(@Nonnull final ItemStack item) {
+        return this.getItemLevel(item) >= this.config.getMaxLevel();
+    }
 
     /**
      * Create a new ItemStack with updated XP metadata.
