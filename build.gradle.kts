@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("com.gradleup.shadow") version "9.3.1"
-    id("app.ultradev.hytalegradle") version "2.0.1"
+    id("app.ultradev.hytalegradle") version "2.0.2"
 }
 
 group = "tokebak"
@@ -23,8 +23,6 @@ tasks.test {
 }
 
 hytale {
-    serverJar.set(file("libs/HytaleServer.jar"))
-    assetsZip.set(file("libs/Assets.zip"))
     // Add `--allow-op` to server args (allows you to run `/op self` in-game)
     allowOp.set(true)
 
