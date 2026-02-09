@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -90,8 +91,8 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         final WeaponCategory category = WeaponCategoryUtil.determineCategory(null, weapon);
         final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
         
-        // Set weapon info
-        final String weaponName = this.formatName(weapon.getItemId());
+        // Set weapon info (use translation like main menu, fallback to formatName)
+        final String weaponName = this.getWeaponDisplayName(weapon);
         uiCommandBuilder.set("#WeaponName.Text", weaponName + " [Lv. " + weaponLevel + "]");
         uiCommandBuilder.set("#Title.Text", "Choose an Upgrade");
         uiCommandBuilder.set("#Description.Text", "Select one of 3 random options");
@@ -113,7 +114,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
                     if (option instanceof UpgradeOption.BoostOption boost) {
                         final String current = definition.getFormattedDescription(boost.getCurrentLevel());
                         final String next = definition.getFormattedDescription(boost.getCurrentLevel() + 1);
-                        valueText = current + " → " + next;
+                        valueText = current + " -> " + next;
                     } else {
                         valueText = definition.getFormattedDescription(1);
                     }
@@ -224,6 +225,37 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         };
     }
     
+    /**
+     * Get display name for weapon. Uses translation if available, falls back to formatItemId.
+     */
+    private String getWeaponDisplayName(ItemStack item) {
+        final String translationKey = item.getItem().getTranslationKey();
+        final String translated = Message.translation(translationKey).getAnsiMessage();
+        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
+            return translated;
+        }
+        return formatItemId(item.getItem().getId());
+    }
+
+    /** Fallback for item IDs (e.g. Weapon_Sword_Iron -> Iron Sword). */
+    private String formatItemId(String raw) {
+        if (raw == null || raw.isEmpty()) return "Unknown";
+        String cleaned = raw;
+        if (cleaned.startsWith("Weapon_")) cleaned = cleaned.substring(7);
+        if (cleaned.startsWith("Tool_")) cleaned = cleaned.substring(5);
+        StringBuilder sb = new StringBuilder();
+        String[] parts = cleaned.split("_");
+        for (int i = parts.length - 1; i >= 0; i--) {
+            String word = parts[i];
+            if (!word.isEmpty()) {
+                if (sb.length() > 0) sb.append(" ");
+                sb.append(Character.toUpperCase(word.charAt(0)));
+                if (word.length() > 1) sb.append(word.substring(1).toLowerCase());
+            }
+        }
+        return sb.toString();
+    }
+
     private String formatName(String raw) {
         if (raw == null || raw.isEmpty()) return "Unknown";
         StringBuilder sb = new StringBuilder();
