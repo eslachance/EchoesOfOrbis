@@ -67,7 +67,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         System.out.println("[EOO]: Embue selection available at levels 5, 10, 15, 20, 25");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
-            event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Press F to upgrade weapons, or /eoo upgrade. /eoo for full UI"));
+            event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Press F to upgrade weapons, or /eoo for full UI"));
         });
     }
 }

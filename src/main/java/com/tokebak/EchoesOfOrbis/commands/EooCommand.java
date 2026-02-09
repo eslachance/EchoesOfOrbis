@@ -18,10 +18,6 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Command /eoo - Opens the Echoes of Orbis item experience UI.
- * 
- * Subcommands:
- * - (none) - Opens main UI showing all weapons
- * - upgrade - Opens upgrade selection for held weapon (use when F key doesn't work)
  */
 public class EooCommand extends AbstractPlayerCommand {
 
@@ -31,7 +27,6 @@ public class EooCommand extends AbstractPlayerCommand {
     public EooCommand(@Nonnull final ItemExpService itemExpService) {
         super("eoo", "Opens the Echoes of Orbis item experience interface");
         this.itemExpService = itemExpService;
-        this.addSubCommand(new EooUpgradeCommand(itemExpService));
     }
     
     @Override
