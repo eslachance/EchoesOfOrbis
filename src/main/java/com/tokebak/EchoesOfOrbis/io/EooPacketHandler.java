@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.protocol.packets.interaction.SyncInteractionChain;
 import com.hypixel.hytale.protocol.packets.interaction.SyncInteractionChains;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -24,10 +25,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Intercepts SyncInteractionChains (packet 290) to handle F-key (Use) when there is no target block.
- * When UseBlock fails (no target), the server normally waits for client sync that may never arrive,
- * so our chain's Failed branch never runs. This handler intercepts Use-with-no-target and opens
- * the upgrade menu directly, bypassing the stuck chain.
+ * Intercepts SyncInteractionChains (packet 290) to handle F-key (Use) when UseBlock would fail.
+ * When UseBlock fails (no target or non-interactible block), the server waits for client sync
+ * that never arrives, so our chain's Failed branch never runs. This handler intercepts those
+ * cases and opens the upgrade menu directly, bypassing the stuck chain.
  */
 public final class EooPacketHandler implements SubPacketHandler {
 
@@ -58,33 +59,74 @@ public final class EooPacketHandler implements SubPacketHandler {
             return;
         }
 
-        final List<SyncInteractionChain> toQueue = new ArrayList<>();
+        final List<SyncInteractionChain> toQueueImmediately = new ArrayList<>();
+        final List<SyncInteractionChain> useUpdatesToDefer = new ArrayList<>();
+
         for (final SyncInteractionChain update : syncPacket.updates) {
-            if (isUseWithNoBlockTarget(update)) {
+            if (!isUseInitial(update)) {
+                toQueueImmediately.add(update);
+                continue;
+            }
+            if (hasNoBlockTarget(update)) {
                 scheduleOpenUpgradeMenu(playerRef, ref);
             } else {
-                toQueue.add(update);
+                useUpdatesToDefer.add(update);
             }
         }
 
-        if (toQueue.isEmpty()) {
-            return;
+        if (!toQueueImmediately.isEmpty()) {
+            forwardToQueue(toQueueImmediately);
         }
-
-        forwardToQueue(toQueue);
+        if (!useUpdatesToDefer.isEmpty()) {
+            scheduleUseWithTargetCheck(playerRef, ref, useUpdatesToDefer);
+        }
     }
 
-    private boolean isUseWithNoBlockTarget(@Nonnull final SyncInteractionChain update) {
-        if (update.interactionType != InteractionType.Use) {
+    private boolean isUseInitial(@Nonnull final SyncInteractionChain update) {
+        return update.interactionType == InteractionType.Use && update.initial;
+    }
+
+    private boolean hasNoBlockTarget(@Nonnull final SyncInteractionChain update) {
+        return update.data == null || update.data.blockPosition == null;
+    }
+
+    private void scheduleUseWithTargetCheck(
+            @Nonnull final PlayerRef playerRef,
+            @Nonnull final Ref<EntityStore> ref,
+            @Nonnull final List<SyncInteractionChain> useUpdates
+    ) {
+        final Store<EntityStore> store = ref.getStore();
+        final EntityStore entityStore = (EntityStore) store.getExternalData();
+        final World world = entityStore.getWorld();
+        world.execute(() -> {
+            if (!ref.isValid()) {
+                return;
+            }
+            final List<SyncInteractionChain> toQueue = new ArrayList<>();
+            for (final SyncInteractionChain update : useUpdates) {
+                if (isBlockInteractible(world, update)) {
+                    toQueue.add(update);
+                } else {
+                    openUpgradeMenuIfEligible(ref, store, playerRef);
+                    return;
+                }
+            }
+            if (!toQueue.isEmpty()) {
+                forwardToQueue(toQueue);
+            }
+        });
+    }
+
+    private boolean isBlockInteractible(@Nonnull final World world, @Nonnull final SyncInteractionChain update) {
+        if (update.data == null || update.data.blockPosition == null) {
             return false;
         }
-        if (!update.initial) {
+        final var pos = update.data.blockPosition;
+        final BlockType blockType = world.getBlockType(pos.x, pos.y, pos.z);
+        if (blockType == null) {
             return false;
         }
-        if (update.data == null) {
-            return true;
-        }
-        return update.data.blockPosition == null;
+        return blockType.getInteractions().get(InteractionType.Use) != null;
     }
 
     private void scheduleOpenUpgradeMenu(@Nonnull final PlayerRef playerRef, @Nonnull final Ref<EntityStore> ref) {
