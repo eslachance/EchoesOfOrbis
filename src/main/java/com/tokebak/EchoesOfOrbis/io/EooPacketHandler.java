@@ -192,6 +192,6 @@ public final class EooPacketHandler implements SubPacketHandler {
             return;
         }
         final GamePacketHandler gameHandler = (GamePacketHandler) packetHandler;
-        Collections.addAll(gameHandler.getInteractionPacketQueue(), updates.toArray(new SyncInteractionChain[0]));
+        Collections.addAll(gameHandler.getInteractionPacketQueue(), updates.toArray(new SyncInteractionChain[updates.size()]));
     }
 }

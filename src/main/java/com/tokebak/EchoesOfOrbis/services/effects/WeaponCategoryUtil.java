@@ -60,15 +60,9 @@ public final class WeaponCategoryUtil {
             if (cause != null) {
                 final String causeId = cause.getId();
                 if (causeId != null) {
-                    // Check for projectile damage
-                    if (causeId.toLowerCase().contains("projectile")) {
-                        return WeaponCategory.PROJECTILE;
-                    }
-                    // Check for magic damage (in case there's a magic damage cause)
-                    if (causeId.toLowerCase().contains("magic") || 
-                        causeId.toLowerCase().contains("spell")) {
-                        return WeaponCategory.MAGIC;
-                    }
+                    final String lower = causeId.toLowerCase();
+                    if (lower.contains("projectile")) return WeaponCategory.PROJECTILE;
+                    if (lower.contains("magic") || lower.contains("spell")) return WeaponCategory.MAGIC;
                 }
             }
         }

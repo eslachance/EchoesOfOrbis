@@ -234,23 +234,27 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 ItemExpNotifications.sendEmbueAvailableNotification(playerRef, pendingEmbues);
             }
             
-            final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
-            System.out.println(String.format(
-                    "[ItemExp] Level up! %d -> %d | Effects: %s",
-                    currentLevel, levelAfter,
-                    effectsService.getEffectsSummary(updatedWeapon)
-            ));
+            if (this.config.isDebug()) {
+                final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
+                System.out.println(String.format(
+                        "[ItemExp] Level up! %d -> %d | Effects: %s",
+                        currentLevel, levelAfter,
+                        effectsService.getEffectsSummary(updatedWeapon)
+                ));
+            }
             
             // LEVEL UP BONUS: Max SignatureEnergy (Q meter)
             final World world = ((EntityStore) store.getExternalData()).getWorld();
             final Ref<EntityStore> finalAttackerRef = attackerRef;
             world.execute(() -> {
                 this.maximizeSignatureEnergy(finalAttackerRef, store);
-                System.out.println(String.format(
-                        "[EOO] Level up bonus applied! SignatureEnergy: max=%.0f, current=%.0f",
-                        this.getSignatureEnergyMax(finalAttackerRef, store),
-                        this.getSignatureEnergy(finalAttackerRef, store)
-                ));
+                if (this.config.isDebug()) {
+                    System.out.println(String.format(
+                            "[EOO] Level up bonus applied! SignatureEnergy: max=%.0f, current=%.0f",
+                            this.getSignatureEnergyMax(finalAttackerRef, store),
+                            this.getSignatureEnergy(finalAttackerRef, store)
+                    ));
+                }
             });
             
             return; // Level up handled, we're done
@@ -287,38 +291,39 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     ) {
         // Capture level BEFORE flushing XP (so we know which milestone levels were crossed)
         final int levelBefore = this.itemExpService.getItemLevel(weapon);
-        final double xpBefore = this.itemExpService.getItemXp(weapon);
         final double pendingXp = this.itemExpService.getPendingXp(playerRef, slot);
         
-        System.out.println(String.format(
-                "[EOO] flushPendingXpAndSwap: BEFORE flush - Level=%d, StoredXP=%.2f, PendingXP=%.2f",
-                levelBefore, xpBefore, pendingXp
-        ));
+        if (this.config.isDebug()) {
+            final double xpBefore = this.itemExpService.getItemXp(weapon);
+            System.out.println(String.format(
+                    "[EOO] flushPendingXpAndSwap: BEFORE flush - Level=%d, StoredXP=%.2f, PendingXP=%.2f",
+                    levelBefore, xpBefore, pendingXp
+            ));
+        }
         
         // Flush pending XP to the weapon
         weapon = this.itemExpService.flushPendingXp(weapon, playerRef, slot);
         
         // Get the new level AFTER flushing
         final int levelAfter = this.itemExpService.getItemLevel(weapon);
-        final double xpAfter = this.itemExpService.getItemXp(weapon);
         
-        System.out.println(String.format(
-                "[EOO] flushPendingXpAndSwap: AFTER flush - Level=%d, StoredXP=%.2f, isLevelUp=%s",
-                levelAfter, xpAfter, isLevelUp
-        ));
+        if (this.config.isDebug()) {
+            final double xpAfter = this.itemExpService.getItemXp(weapon);
+            System.out.println(String.format(
+                    "[EOO] flushPendingXpAndSwap: AFTER flush - Level=%d, StoredXP=%.2f, isLevelUp=%s",
+                    levelAfter, xpAfter, isLevelUp
+            ));
+        }
         
         // Effects are static - only change when player selects upgrade (no auto-update)
         weapon = this.itemExpService.updateWeaponEffects(weapon, levelAfter);
         
         // Every level crossed gives 1 pending embue (Vampire Survivors style)
-        final int newEmbuesToAdd = levelAfter - levelBefore;
-        for (int i = 0; i < newEmbuesToAdd; i++) {
-            weapon = this.itemExpService.addPendingEmbue(weapon);
-        }
+        weapon = this.itemExpService.addPendingEmbues(weapon, levelAfter - levelBefore);
         
-        // Log final pending embues count
-        final int finalPendingEmbues = this.itemExpService.getPendingEmbues(weapon);
-        System.out.println(String.format("[EOO] After adding embues: pendingEmbues=%d", finalPendingEmbues));
+        if (this.config.isDebug()) {
+            System.out.println(String.format("[EOO] After adding embues: pendingEmbues=%d", this.itemExpService.getPendingEmbues(weapon)));
+        }
         
         // Apply level-up bonuses
         if (isLevelUp) {
@@ -328,7 +333,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Swap the weapon, preserving SignatureEnergy
         this.swapWeaponPreservingSignature(attackerRef, store, inventory, slot, weapon);
         
-        if (isLevelUp) {
+        if (isLevelUp && this.config.isDebug()) {
             System.out.println("[EOO] Level up: Durability restored to max!");
         }
     }

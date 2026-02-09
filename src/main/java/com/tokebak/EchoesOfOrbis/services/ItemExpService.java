@@ -174,13 +174,17 @@ public class ItemExpService {
      */
     @Nonnull
     public ItemStack addPendingEmbue(@Nonnull final ItemStack item) {
+        return addPendingEmbues(item, 1);
+    }
+
+    /**
+     * Add multiple pending embues in one metadata write.
+     */
+    @Nonnull
+    public ItemStack addPendingEmbues(@Nonnull final ItemStack item, final int count) {
+        if (count <= 0) return item;
         final int current = this.getPendingEmbues(item);
-        final int newCount = current + 1;
-        System.out.println(String.format(
-                "[EOO] addPendingEmbue: %s | %d -> %d pending embues",
-                item.getItemId(), current, newCount
-        ));
-        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, newCount);
+        return item.withMetadata(META_KEY_PENDING_EMBUES, Codec.INTEGER, current + count);
     }
     
     /**
@@ -229,8 +233,14 @@ public class ItemExpService {
      * Check if a specific effect is unlocked on this weapon.
      */
     public boolean isEffectUnlocked(@Nullable final ItemStack item, @Nonnull final WeaponEffectType type) {
-        final List<String> ids = this.getUnlockedEffectIds(item);
-        return ids.contains(type.getId());
+        if (item == null) return false;
+        final String[] effects = (String[]) item.getFromMetadataOrNull(META_KEY_UNLOCKED_EFFECTS, UNLOCKED_EFFECTS_CODEC);
+        if (effects == null) return false;
+        final String targetId = type.getId();
+        for (final String id : effects) {
+            if (targetId.equals(id)) return true;
+        }
+        return false;
     }
     
     /**
@@ -398,22 +408,22 @@ public class ItemExpService {
      * Inverse of getXpRequiredForLevel.
      */
     public int calculateLevelFromXp(final double totalXp) {
-        if (totalXp <= 0) {
-            return 1;
-        }
+        if (totalXp <= 0) return 1;
+        final int maxLevel = this.config.getMaxLevel();
+        if (totalXp >= this.getXpRequiredForLevel(maxLevel)) return maxLevel;
 
-        // Binary search to find the level
-        // This is more reliable than inverting the formula mathematically
-        int level = 1;
-        while (level < this.config.getMaxLevel()) {
-            final double xpForNextLevel = this.getXpRequiredForLevel(level + 1);
-            if (totalXp < xpForNextLevel) {
-                break;
+        // Binary search: find lowest level L where getXpRequiredForLevel(L+1) > totalXp
+        int lo = 1;
+        int hi = maxLevel;
+        while (lo < hi) {
+            final int mid = (lo + hi + 1) >>> 1;
+            if (this.getXpRequiredForLevel(mid) <= totalXp) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
             }
-            level++;
         }
-
-        return level;
+        return lo;
     }
 
     /**
@@ -538,26 +548,20 @@ public class ItemExpService {
             ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
             
             // Every level gives 1 pending embue (Vampire Survivors style)
-            final int newEmbuesToAdd = levelAfter - levelBefore;
-            for (int i = 0; i < newEmbuesToAdd; i++) {
-                updatedWeapon = this.addPendingEmbue(updatedWeapon);
-            }
+            updatedWeapon = this.addPendingEmbues(updatedWeapon, levelAfter - levelBefore);
             
             final int pendingEmbues = this.getPendingEmbues(updatedWeapon);
             System.out.println(String.format(
-                    "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s | Pending Embues: %d",
-                    levelBefore,
-                    levelAfter,
-                    this.effectsService.getEffectsSummary(updatedWeapon),
-                    pendingEmbues
+                "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s | Pending Embues: %d",
+                levelBefore,
+                levelAfter,
+                this.effectsService.getEffectsSummary(updatedWeapon),
+                pendingEmbues
             ));
-            
-            if (newEmbuesToAdd > 0) {
-                System.out.println(String.format(
-                        "[ItemExp] +%d upgrade(s) available. Use /eoo to select.",
-                        newEmbuesToAdd
-                ));
-            }
+            System.out.println(String.format(
+                "[ItemExp] +%d upgrade(s) available. Use /eoo to select.",
+                levelAfter - levelBefore
+            ));
             
             // Return the updated weapon - caller is responsible for the hotbar swap
             // (to properly preserve SignatureEnergy and optionally restore durability)

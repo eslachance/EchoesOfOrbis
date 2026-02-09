@@ -1,5 +1,7 @@
 package com.tokebak.EchoesOfOrbis.services.effects;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -168,6 +170,13 @@ public enum WeaponEffectType {
      */
     PLAYER_STAT("player_stat", WeaponCategory.all());
     
+    private static final Map<String, WeaponEffectType> BY_ID = new HashMap<>();
+    static {
+        for (final WeaponEffectType t : values()) {
+            BY_ID.put(t.id, t);
+        }
+    }
+
     private final String id;
     private final Set<WeaponCategory> applicableCategories;
     
@@ -210,11 +219,6 @@ public enum WeaponEffectType {
      * @return The effect type, or null if not found
      */
     public static WeaponEffectType fromId(final String id) {
-        for (final WeaponEffectType type : values()) {
-            if (type.id.equals(id)) {
-                return type;
-            }
-        }
-        return null;
+        return id == null ? null : BY_ID.get(id);
     }
 }

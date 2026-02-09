@@ -242,17 +242,19 @@ public class WeaponEffectsService {
     
     /**
      * Get a specific effect instance from a weapon.
+     * Scans metadata directly to avoid allocating a full list.
      */
     @Nullable
     public WeaponEffectInstance getEffect(
             @Nullable final ItemStack weapon,
             @Nonnull final WeaponEffectType type
     ) {
-        final List<WeaponEffectInstance> effects = this.getEffects(weapon);
+        if (weapon == null || weapon.isEmpty()) return null;
+        final WeaponEffectInstance[] effects = (WeaponEffectInstance[]) weapon.getFromMetadataOrNull(
+                META_KEY_EFFECTS, EFFECTS_CODEC);
+        if (effects == null) return null;
         for (final WeaponEffectInstance effect : effects) {
-            if (effect.getType() == type) {
-                return effect;
-            }
+            if (effect != null && effect.getType() == type) return effect;
         }
         return null;
     }
