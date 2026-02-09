@@ -27,6 +27,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -101,7 +102,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         final ItemExpService.UpgradeOptionsResult result = this.itemExpService.getOrCreatePendingUpgradeOptions(weapon, category, 3);
         this.availableOptions = result.options;
         if (result.weaponToPersist != null) {
-            this.setWeaponInInventory(inventory, result.weaponToPersist);
+            this.setWeaponInInventory(ref, store, inventory, result.weaponToPersist, false);
         }
         
         // Set up each option
@@ -184,7 +185,8 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         
         weapon = this.itemExpService.consumePendingEmbue(weapon);
         weapon = this.itemExpService.clearPendingUpgradeOptions(weapon);
-        this.setWeaponInInventory(inventory, weapon);
+        // Use safe write-and-swap to preserve SignatureEnergy (metadata writes reset it)
+        this.setWeaponInInventory(ref, store, inventory, weapon, false);
         
         System.out.println(String.format(
                 "[ItemExp] Upgrade selected: %s for %s",
@@ -209,12 +211,20 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
     
     /**
      * Set the weapon in the inventory.
+     * For Hotbar: uses swap helper to preserve/maximize SignatureEnergy after metadata write.
+     *
+     * @param maximizeSignature true to maximize SignatureEnergy (level-up bonus), false to preserve
      */
-    private void setWeaponInInventory(Inventory inventory, ItemStack weapon) {
-        final ItemContainer container = this.getContainer(inventory);
-        if (container != null) {
-            container.setItemStackForSlot((short) this.slot, weapon);
-        }
+    private void setWeaponInInventory(Ref<EntityStore> ref, Store<EntityStore> store, Inventory inventory, ItemStack weapon, boolean maximizeSignature) {
+        WeaponSwapUtil.swapWeaponInContainer(
+                ref,
+                store,
+                inventory,
+                this.containerName,
+                this.slot,
+                weapon,
+                maximizeSignature
+        );
     }
     
     /**
