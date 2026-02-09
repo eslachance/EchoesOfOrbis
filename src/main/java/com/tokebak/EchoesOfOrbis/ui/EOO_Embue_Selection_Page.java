@@ -97,8 +97,12 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         uiCommandBuilder.set("#Title.Text", "Choose an Upgrade");
         uiCommandBuilder.set("#Description.Text", "Select one of 3 random options");
         
-        // Get available options (boost existing or add new)
-        this.availableOptions = effectsService.getRandomUpgradeOptions(weapon, category, 3);
+        // Get available options (use persisted if any, else generate and store)
+        final ItemExpService.UpgradeOptionsResult result = this.itemExpService.getOrCreatePendingUpgradeOptions(weapon, category, 3);
+        this.availableOptions = result.options;
+        if (result.weaponToPersist != null) {
+            this.setWeaponInInventory(inventory, result.weaponToPersist);
+        }
         
         // Set up each option
         for (int i = 0; i < 3; i++) {
@@ -167,7 +171,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             return;
         }
         
-        if (option instanceof UpgradeOption.BoostOption boost) {
+        if (option instanceof UpgradeOption.BoostOption) {
             final WeaponEffectInstance existing = effectsService.getEffect(weapon, effectType);
             if (existing != null) {
                 final WeaponEffectInstance upgraded = new WeaponEffectInstance(effectType, existing.getLevel() + 1);
@@ -179,6 +183,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         }
         
         weapon = this.itemExpService.consumePendingEmbue(weapon);
+        weapon = this.itemExpService.clearPendingUpgradeOptions(weapon);
         this.setWeaponInInventory(inventory, weapon);
         
         System.out.println(String.format(

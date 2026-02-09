@@ -7,6 +7,8 @@ import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
+import com.tokebak.EchoesOfOrbis.services.effects.UpgradeOption;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import java.util.ArrayList;
@@ -34,7 +36,8 @@ public class ItemExpService {
     public static final String META_KEY_LEVEL = "ItemExp_Level";
     public static final String META_KEY_PENDING_EMBUES = "ItemExp_PendingEmbues";
     public static final String META_KEY_UNLOCKED_EFFECTS = "ItemExp_UnlockedEffects";
-    
+    public static final String META_KEY_PENDING_UPGRADE_OPTIONS = "ItemExp_PendingUpgradeOptions";
+
     /**
      * Codec for storing unlocked effect IDs as string array.
      */
@@ -249,6 +252,106 @@ public class ItemExpService {
                 UNLOCKED_EFFECTS_CODEC, 
                 ids.toArray(new String[0])
         );
+    }
+
+    /**
+     * Persisted upgrade options format: "effectTypeId:level" per option.
+     * level 0 = NewEffectOption, level > 0 = BoostOption with that current level.
+     */
+    private static String[] serializeUpgradeOptions(@Nonnull final List<UpgradeOption> options) {
+        final String[] out = new String[options.size()];
+        for (int i = 0; i < options.size(); i++) {
+            final UpgradeOption opt = options.get(i);
+            final int level = opt instanceof UpgradeOption.BoostOption b ? b.getCurrentLevel() : 0;
+            out[i] = opt.getEffectType().getId() + ":" + level;
+        }
+        return out;
+    }
+
+    @Nullable
+    private static List<UpgradeOption> deserializeUpgradeOptions(@Nullable final String[] raw) {
+        if (raw == null || raw.length == 0) {
+            return null;
+        }
+        final List<UpgradeOption> options = new ArrayList<>();
+        for (final String s : raw) {
+            final int colon = s.indexOf(':');
+            if (colon < 0) continue;
+            final String effectId = s.substring(0, colon);
+            final int level;
+            try {
+                level = Integer.parseInt(s.substring(colon + 1));
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            final WeaponEffectType type = WeaponEffectType.fromId(effectId);
+            if (type == null) continue;
+            if (level == 0) {
+                options.add(new UpgradeOption.NewEffectOption(type));
+            } else {
+                options.add(new UpgradeOption.BoostOption(type, level));
+            }
+        }
+        return options.isEmpty() ? null : options;
+    }
+
+    /**
+     * Get persisted upgrade options from weapon metadata, or null if none.
+     */
+    @Nullable
+    public List<UpgradeOption> getPendingUpgradeOptions(@Nullable final ItemStack weapon) {
+        if (weapon == null) return null;
+        final String[] raw = (String[]) weapon.getFromMetadataOrNull(META_KEY_PENDING_UPGRADE_OPTIONS, UNLOCKED_EFFECTS_CODEC);
+        return deserializeUpgradeOptions(raw);
+    }
+
+    /**
+     * Store upgrade options in weapon metadata.
+     */
+    @Nonnull
+    public ItemStack setPendingUpgradeOptions(@Nonnull final ItemStack weapon, @Nonnull final List<UpgradeOption> options) {
+        return weapon.withMetadata(META_KEY_PENDING_UPGRADE_OPTIONS, UNLOCKED_EFFECTS_CODEC, serializeUpgradeOptions(options));
+    }
+
+    /**
+     * Clear persisted upgrade options from weapon metadata.
+     */
+    @Nonnull
+    public ItemStack clearPendingUpgradeOptions(@Nonnull final ItemStack weapon) {
+        return weapon.withMetadata(META_KEY_PENDING_UPGRADE_OPTIONS, UNLOCKED_EFFECTS_CODEC, null);
+    }
+
+    /**
+     * Result of getOrCreatePendingUpgradeOptions.
+     */
+    public static final class UpgradeOptionsResult {
+        @Nonnull public final List<UpgradeOption> options;
+        /** Non-null if options were generated and weapon must be persisted. */
+        @Nullable public final ItemStack weaponToPersist;
+
+        public UpgradeOptionsResult(@Nonnull final List<UpgradeOption> options, @Nullable final ItemStack weaponToPersist) {
+            this.options = options;
+            this.weaponToPersist = weaponToPersist;
+        }
+    }
+
+    /**
+     * Get persisted upgrade options, or generate and store new ones if none.
+     * When weaponToPersist is non-null, the caller must persist it to the inventory.
+     */
+    @Nonnull
+    public UpgradeOptionsResult getOrCreatePendingUpgradeOptions(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final WeaponCategory category,
+            final int count
+    ) {
+        final List<UpgradeOption> cached = this.getPendingUpgradeOptions(weapon);
+        if (cached != null && !cached.isEmpty()) {
+            return new UpgradeOptionsResult(cached, null);
+        }
+        final List<UpgradeOption> generated = this.effectsService.getRandomUpgradeOptions(weapon, category, count);
+        final ItemStack updated = this.setPendingUpgradeOptions(weapon, generated);
+        return new UpgradeOptionsResult(generated, updated);
     }
 
     /**
