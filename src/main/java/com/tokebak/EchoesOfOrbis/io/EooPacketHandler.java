@@ -1,34 +1,20 @@
 package com.tokebak.EchoesOfOrbis.io;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.protocol.packets.interaction.SyncInteractionChain;
 import com.hypixel.hytale.protocol.packets.interaction.SyncInteractionChains;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.Inventory;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.handlers.IPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.SubPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.game.GamePacketHandler;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.tokebak.EchoesOfOrbis.services.ItemExpService;
-import com.tokebak.EchoesOfOrbis.ui.EOO_Embue_Selection_Page;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 /**
- * Intercepts SyncInteractionChains (packet 290) to handle F-key (Use) when UseBlock would fail.
- * When UseBlock fails (no target or non-interactible block), the server waits for client sync
- * that never arrives, so our chain's Failed branch never runs. This handler intercepts those
- * cases and opens the upgrade menu directly, bypassing the stuck chain.
+ * SubPacketHandler for packet 290 (SyncInteractionChains).
+ * Forwards packets to the interaction queue. Previously attempted to intercept
+ * Use (F-key) when UseBlock would fail to open the upgrade menu directly, but
+ * that caused client disconnects (likely threading/ECS access from packet thread).
+ * Kept as a pass-through handler so the mod can be extended later if needed.
  */
 public final class EooPacketHandler implements SubPacketHandler {
 
@@ -51,147 +37,17 @@ public final class EooPacketHandler implements SubPacketHandler {
         if (syncPacket.updates == null || syncPacket.updates.length == 0) {
             return;
         }
-
-        final PlayerRef playerRef = packetHandler.getPlayerRef();
-        final Ref<EntityStore> ref = playerRef.getReference();
-        if (ref == null || !ref.isValid()) {
-            forwardToQueue(syncPacket);
-            return;
-        }
-
-        final List<SyncInteractionChain> toQueueImmediately = new ArrayList<>();
-        final List<SyncInteractionChain> useUpdatesToDefer = new ArrayList<>();
-
-        for (final SyncInteractionChain update : syncPacket.updates) {
-            if (!isUseInitial(update)) {
-                toQueueImmediately.add(update);
-                continue;
-            }
-            if (hasNoBlockTarget(update)) {
-                scheduleOpenUpgradeMenu(playerRef, ref);
-            } else {
-                useUpdatesToDefer.add(update);
-            }
-        }
-
-        if (!toQueueImmediately.isEmpty()) {
-            forwardToQueue(toQueueImmediately);
-        }
-        if (!useUpdatesToDefer.isEmpty()) {
-            scheduleUseWithTargetCheck(playerRef, ref, useUpdatesToDefer);
-        }
-    }
-
-    private boolean isUseInitial(@Nonnull final SyncInteractionChain update) {
-        return update.interactionType == InteractionType.Use && update.initial;
-    }
-
-    private boolean hasNoBlockTarget(@Nonnull final SyncInteractionChain update) {
-        return update.data == null || update.data.blockPosition == null;
-    }
-
-    private void scheduleUseWithTargetCheck(
-            @Nonnull final PlayerRef playerRef,
-            @Nonnull final Ref<EntityStore> ref,
-            @Nonnull final List<SyncInteractionChain> useUpdates
-    ) {
-        final Store<EntityStore> store = ref.getStore();
-        final EntityStore entityStore = (EntityStore) store.getExternalData();
-        final World world = entityStore.getWorld();
-        world.execute(() -> {
-            if (!ref.isValid()) {
-                return;
-            }
-            final List<SyncInteractionChain> toQueue = new ArrayList<>();
-            for (final SyncInteractionChain update : useUpdates) {
-                if (isBlockInteractible(world, update)) {
-                    toQueue.add(update);
-                } else {
-                    openUpgradeMenuIfEligible(ref, store, playerRef);
-                    return;
-                }
-            }
-            if (!toQueue.isEmpty()) {
-                forwardToQueue(toQueue);
-            }
-        });
-    }
-
-    private boolean isBlockInteractible(@Nonnull final World world, @Nonnull final SyncInteractionChain update) {
-        if (update.data == null || update.data.blockPosition == null) {
-            return false;
-        }
-        final var pos = update.data.blockPosition;
-        final BlockType blockType = world.getBlockType(pos.x, pos.y, pos.z);
-        if (blockType == null) {
-            return false;
-        }
-        return blockType.getInteractions().get(InteractionType.Use) != null;
-    }
-
-    private void scheduleOpenUpgradeMenu(@Nonnull final PlayerRef playerRef, @Nonnull final Ref<EntityStore> ref) {
-        final Store<EntityStore> store = ref.getStore();
-        final EntityStore entityStore = (EntityStore) store.getExternalData();
-        final World world = entityStore.getWorld();
-        world.execute(() -> {
-            if (!ref.isValid()) {
-                return;
-            }
-            openUpgradeMenuIfEligible(ref, store, playerRef);
-        });
-    }
-
-    private void openUpgradeMenuIfEligible(
-            @Nonnull final Ref<EntityStore> ref,
-            @Nonnull final Store<EntityStore> store,
-            @Nonnull final PlayerRef playerRef
-    ) {
-        final Player player = store.getComponent(ref, Player.getComponentType());
-        if (player == null) {
-            return;
-        }
-        final Inventory inventory = player.getInventory();
-        if (inventory == null) {
-            return;
-        }
-        final byte activeSlot = inventory.getActiveHotbarSlot();
-        if (activeSlot < 0) {
-            return;
-        }
-        final ItemStack heldItem = inventory.getHotbar().getItemStack((short) activeSlot);
-        if (heldItem == null || heldItem.isEmpty()) {
-            return;
-        }
-        final ItemExpService itemExpService = ItemExpService.getInstance();
-        if (itemExpService == null) {
-            return;
-        }
-        if (!itemExpService.canGainXp(heldItem)) {
-            return;
-        }
-        if (itemExpService.getPendingEmbues(heldItem) <= 0) {
-            return;
-        }
-
-        final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
-                playerRef,
-                com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime.CanDismiss,
-                itemExpService,
-                "Hotbar",
-                activeSlot
-        );
-        player.getPageManager().openCustomPage(ref, store, selectionPage);
+        System.out.println("[EOO Packet] SyncInteractionChains received, updates=" + syncPacket.updates.length);
+        forwardToQueue(syncPacket);
     }
 
     private void forwardToQueue(@Nonnull final SyncInteractionChains packet) {
-        forwardToQueue(Arrays.asList(packet.updates));
-    }
-
-    private void forwardToQueue(@Nonnull final List<SyncInteractionChain> updates) {
         if (!(packetHandler instanceof GamePacketHandler)) {
+            System.out.println("[EOO Packet] Cannot forward: packetHandler is not GamePacketHandler");
             return;
         }
         final GamePacketHandler gameHandler = (GamePacketHandler) packetHandler;
-        Collections.addAll(gameHandler.getInteractionPacketQueue(), updates.toArray(new SyncInteractionChain[updates.size()]));
+        Collections.addAll(gameHandler.getInteractionPacketQueue(), packet.updates);
+        System.out.println("[EOO Packet] Forwarded " + packet.updates.length + " updates to interaction queue");
     }
 }
