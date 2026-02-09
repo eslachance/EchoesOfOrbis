@@ -3,6 +3,7 @@ package com.tokebak.EchoesOfOrbis.services.effects;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.tokebak.EchoesOfOrbis.services.WeaponMaterialService;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
@@ -62,17 +63,17 @@ public class WeaponEffectsService {
     
     /**
      * Register the default effect definitions and processors.
+     * Values are smaller per boost to avoid overpowered weapons over 25 levels.
+     * Each boost adds a fixed amount; effect level = number of times boosted.
      */
     private void registerDefaults() {
-        // DAMAGE_PERCENT: Bonus damage scaling from 5% to 100% over levels 2-25
-        // Effect level 1 (weapon level 2): 5%
-        // Effect level 24 (weapon level 25): 100%
+        // DAMAGE_PERCENT: 3% at level 1, +2% per boost. 8 boosts ≈ 17% total.
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_PERCENT)
-                        .baseValue(0.05)       // 5% at effect level 1
-                        .valuePerLevel(0.0413) // +4.13% per level to reach 100% at level 25
-                        .maxValue(1.0)         // Cap at 100% bonus
-                        .maxLevel(24)
+                        .baseValue(0.03)       // 3% at effect level 1
+                        .valuePerLevel(0.02)   // +2% per additional boost
+                        .maxValue(0.25)        // Cap at 25% bonus
+                        .maxLevel(10)
                         .description("+{value} damage")
                         .build()
         );
@@ -81,117 +82,97 @@ public class WeaponEffectsService {
         // DAMAGE_FLAT: Add flat damage
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_FLAT)
-                        .baseValue(1.0)       // +1 damage at effect level 1
-                        .valuePerLevel(1.0)   // +1 per additional level
-                        .maxValue(50.0)       // Cap at +50 damage
-                        .maxLevel(20)
+                        .baseValue(0.5)        // +0.5 damage at effect level 1
+                        .valuePerLevel(0.5)   // +0.5 per additional boost
+                        .maxValue(5.0)        // Cap at +5 damage
+                        .maxLevel(10)
                         .description("+{value} flat damage")
                         .build()
         );
-        // Processor for DAMAGE_FLAT would be similar to DAMAGE_PERCENT
         
-        // LIFE_LEECH: Heal percentage of damage dealt
-        // Scales from 2% to 50% over levels
+        // LIFE_LEECH: 1% at level 1, +1% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.LIFE_LEECH)
-                        .baseValue(0.02)      // 2% at effect level 1
-                        .valuePerLevel(0.02)  // +2% per level
-                        .maxValue(0.50)       // Cap at 50%
-                        .maxLevel(24)
+                        .baseValue(0.01)      // 1% at effect level 1
+                        .valuePerLevel(0.01)  // +1% per boost
+                        .maxValue(0.15)       // Cap at 15%
+                        .maxLevel(10)
                         .description("Heal {value} of damage dealt")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.LIFE_LEECH, new LifeLeechProcessor());
         
-        // DURABILITY_SAVE: Chance to not lose durability on hit
-        // Scales from 10% to 100% over levels 2-25
-        // Effect level 1 (weapon level 2): 10%
-        // Effect level 24 (weapon level 25): 100%
+        // DURABILITY_SAVE: 5% at level 1, +5% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.DURABILITY_SAVE)
-                        .baseValue(0.10)       // 10% at effect level 1
-                        .valuePerLevel(0.0391) // +3.91% per level to reach 100% at level 25
-                        .maxValue(1.0)         // Cap at 100%
-                        .maxLevel(24)
+                        .baseValue(0.05)      // 5% at effect level 1
+                        .valuePerLevel(0.05)  // +5% per boost
+                        .maxValue(0.50)       // Cap at 50%
+                        .maxLevel(10)
                         .description("{value} chance to save durability")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.DURABILITY_SAVE, new DurabilitySaveProcessor());
         
-        // POISON_ON_HIT: Chance to apply poison damage over time
-        // Scales from 10% chance at level 1 to 50% chance at max level
-        // The poison DoT damage is determined by the game's EntityEffect asset
+        // POISON_ON_HIT: 5% at level 1, +2% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.POISON_ON_HIT)
-                        .baseValue(0.10)      // 10% chance at effect level 1
-                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
-                        .maxValue(0.50)       // Cap at 50% chance
-                        .maxLevel(24)
+                        .baseValue(0.05)      // 5% chance at effect level 1
+                        .valuePerLevel(0.02)  // +2% per boost
+                        .maxValue(0.25)       // Cap at 25% chance
+                        .maxLevel(10)
                         .description("{value} chance to poison on hit")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.POISON_ON_HIT, new PoisonOnHitProcessor());
         
-        // FIRE_ON_HIT: Chance to apply burn damage over time
-        // Scales from 15% chance at level 1 to 60% chance at max level
-        // The burn DoT deals 5 fire damage/sec for 3 seconds (15 total)
-        // Note: Burn cannot be applied if target is in water (game handles this)
+        // FIRE_ON_HIT: 5% at level 1, +2% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.FIRE_ON_HIT)
-                        .baseValue(0.15)      // 15% chance at effect level 1
-                        .valuePerLevel(0.019) // +1.9% per level to reach ~60% at level 24
-                        .maxValue(0.60)       // Cap at 60% chance
-                        .maxLevel(24)
+                        .baseValue(0.05)      // 5% chance at effect level 1
+                        .valuePerLevel(0.02)  // +2% per boost
+                        .maxValue(0.25)       // Cap at 25% chance
+                        .maxLevel(10)
                         .description("{value} chance to burn on hit")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.FIRE_ON_HIT, new FireOnHitProcessor());
         
-        // SLOW_ON_HIT: Chance to slow the target's movement
-        // Scales from 10% chance at level 1 to 50% chance at max level
-        // Slow reduces movement speed by 50% for 10 seconds
+        // SLOW_ON_HIT: 5% at level 1, +2% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.SLOW_ON_HIT)
-                        .baseValue(0.10)      // 10% chance at effect level 1
-                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
-                        .maxValue(0.50)       // Cap at 50% chance
-                        .maxLevel(24)
+                        .baseValue(0.05)      // 5% chance at effect level 1
+                        .valuePerLevel(0.02)  // +2% per boost
+                        .maxValue(0.25)       // Cap at 25% chance
+                        .maxLevel(10)
                         .description("{value} chance to slow on hit")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.SLOW_ON_HIT, new SlowOnHitProcessor());
         
-        // FREEZE_ON_HIT: Chance to freeze (immobilize) the target
-        // Scales from 5% chance at level 1 to 25% chance at max level
-        // Freeze completely stops movement - very powerful, so lower chance
+        // FREEZE_ON_HIT: 2% at level 1, +1% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.FREEZE_ON_HIT)
-                        .baseValue(0.05)      // 5% chance at effect level 1
-                        .valuePerLevel(0.0083) // +0.83% per level to reach ~25% at level 24
-                        .maxValue(0.25)       // Cap at 25% chance
-                        .maxLevel(24)
+                        .baseValue(0.02)      // 2% chance at effect level 1
+                        .valuePerLevel(0.01)  // +1% per boost
+                        .maxValue(0.12)       // Cap at 12% chance
+                        .maxLevel(10)
                         .description("{value} chance to freeze on hit")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.FREEZE_ON_HIT, new FreezeOnHitProcessor());
         
-        // MULTISHOT: Chance to fire an additional projectile on hit
-        // Only for projectile weapons (bows, crossbows, guns)
-        // Scales from 10% chance at level 1 to 50% chance at max level
-        // The extra projectile is fired from the attacker toward the target
-        // and does NOT consume ammo
+        // MULTISHOT: 5% at level 1, +2% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.MULTISHOT)
-                        .baseValue(0.10)      // 10% chance at effect level 1
-                        .valuePerLevel(0.017) // +1.7% per level to reach ~50% at level 24
-                        .maxValue(0.50)       // Cap at 50% chance
-                        .maxLevel(24)
+                        .baseValue(0.05)      // 5% chance at effect level 1
+                        .valuePerLevel(0.02)  // +2% per boost
+                        .maxValue(0.25)       // Cap at 25% chance
+                        .maxLevel(10)
                         .description("{value} chance for extra projectile")
                         .build()
         );
         this.registerProcessor(WeaponEffectType.MULTISHOT, new MultishotProcessor());
-        
-        // More effects can be registered here or in configuration
     }
     
     /**
@@ -525,13 +506,13 @@ public class WeaponEffectsService {
     // ==================== Embue Selection ====================
     
     /**
-     * Get a list of effect types that can be selected as embues for a weapon.
+     * Get a list of effect types that can be selected as new effects for a weapon.
      * Filters by:
      * - Weapon category (only effects that apply to this weapon type)
      * - Already unlocked effects (excludes them)
-     * - DAMAGE_PERCENT (excluded, as it's automatic)
+     * - DAMAGE_PERCENT is now selectable (no longer automatic)
      * - Has a registered definition (effect is implemented)
-     * 
+     *
      * @param category The weapon's category
      * @param alreadyUnlocked List of already unlocked effect type IDs
      * @return List of selectable effect types
@@ -542,37 +523,91 @@ public class WeaponEffectsService {
             @Nonnull final List<String> alreadyUnlocked
     ) {
         final List<WeaponEffectType> selectable = new ArrayList<>();
-        
+
         for (final WeaponEffectType type : WeaponEffectType.values()) {
-            // Skip DAMAGE_PERCENT - it's always automatic
-            if (type == WeaponEffectType.DAMAGE_PERCENT) {
-                continue;
-            }
-            
             // Skip FREEZE_ON_HIT - disabled (effect not working on mobs)
             if (type == WeaponEffectType.FREEZE_ON_HIT) {
                 continue;
             }
-            
+
             // Skip if already unlocked
             if (alreadyUnlocked.contains(type.getId())) {
                 continue;
             }
-            
+
             // Skip if doesn't apply to this weapon category
             if (!type.appliesTo(category)) {
                 continue;
             }
-            
+
             // Skip if we don't have a definition for it (not implemented)
             if (!this.definitions.containsKey(type)) {
                 continue;
             }
-            
+
             selectable.add(type);
         }
-        
+
         return selectable;
+    }
+
+    /**
+     * Get random upgrade options for the Vampire Survivors-style selection.
+     * Each option is either a boost to an existing effect or adding a new effect type.
+     *
+     * @param weapon The weapon
+     * @param category The weapon's category
+     * @param count Maximum number of options to return (typically 3)
+     * @return List of random upgrade options
+     */
+    @Nonnull
+    public List<UpgradeOption> getRandomUpgradeOptions(
+            @Nonnull final ItemStack weapon,
+            @Nonnull final WeaponCategory category,
+            final int count
+    ) {
+        final List<UpgradeOption> pool = new ArrayList<>();
+        final List<WeaponEffectInstance> effects = this.getEffects(weapon);
+        final List<String> alreadyUnlocked = new ArrayList<>();
+        for (final WeaponEffectInstance e : effects) {
+            if (e.getType() != null) {
+                alreadyUnlocked.add(e.getType().getId());
+            }
+        }
+        final int boostSlots = WeaponMaterialService.getBoostSlotsForWeapon(weapon);
+        final boolean canAddNew = effects.size() < boostSlots;
+
+        // Add boost options for existing effects
+        for (final WeaponEffectInstance effect : effects) {
+            final WeaponEffectType type = effect.getType();
+            if (type == null || !type.appliesTo(category)) {
+                continue;
+            }
+            final WeaponEffectDefinition def = this.definitions.get(type);
+            if (def == null) {
+                continue;
+            }
+            final int level = effect.getLevel();
+            if (level >= def.getMaxLevel()) {
+                continue;
+            }
+            pool.add(new UpgradeOption.BoostOption(type, level));
+        }
+
+        // Add new effect options if under slot limit
+        if (canAddNew) {
+            final List<WeaponEffectType> selectableNew = this.getSelectableEffects(category, alreadyUnlocked);
+            for (final WeaponEffectType type : selectableNew) {
+                pool.add(new UpgradeOption.NewEffectOption(type));
+            }
+        }
+
+        if (pool.size() <= count) {
+            Collections.shuffle(pool);
+            return pool;
+        }
+        Collections.shuffle(pool);
+        return pool.subList(0, count);
     }
     
     /**

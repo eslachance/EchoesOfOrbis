@@ -127,9 +127,9 @@ public final class ItemExpNotifications {
             return;
         }
 
-        // Format: "2 Embues available! Use /eoo to upgrade!"
+        // Format: "2 Upgrades available! Press F to choose! (when not looking at a chest/NPC)"
         final String text = String.format(
-                "%d Embue%s available! Use /eoo to upgrade!",
+                "%d Upgrade%s available! Press F to choose!",
                 embueCount,
                 embueCount == 1 ? "" : "s"
         );

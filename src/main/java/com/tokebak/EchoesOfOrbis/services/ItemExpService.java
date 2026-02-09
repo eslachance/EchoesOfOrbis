@@ -41,15 +41,24 @@ public class ItemExpService {
     private static final Codec<String[]> UNLOCKED_EFFECTS_CODEC = 
             new ArrayCodec<>(Codec.STRING, String[]::new);
     
-    /**
-     * Milestone levels where players can select an embue.
-     * At each of these levels, a pending embue is added.
-     */
-    public static final int[] EMBUE_MILESTONES = {5, 10, 15, 20, 25};
+    private static volatile ItemExpService instance;
 
     private final EchoesOfOrbisConfig config;
     private final WeaponEffectsService effectsService;
-    
+
+    /**
+     * Set the global instance (called by EchoesOfOrbis during setup).
+     * Used by ShowUpgradeSelectionInteraction which cannot receive constructor injection.
+     */
+    public static void setInstance(@Nonnull final ItemExpService itemExpService) {
+        instance = itemExpService;
+    }
+
+    @Nullable
+    public static ItemExpService getInstance() {
+        return instance;
+    }
+
     /**
      * Cache of pending XP that hasn't been persisted to weapon metadata yet.
      * XP is cached during combat to avoid interrupting abilities (like ultimates).
@@ -144,18 +153,6 @@ public class ItemExpService {
     }
     
     // ==================== EMBUE SYSTEM ====================
-    
-    /**
-     * Check if a level is a milestone level where an embue is awarded.
-     */
-    public static boolean isMilestoneLevel(final int level) {
-        for (final int milestone : EMBUE_MILESTONES) {
-            if (level == milestone) {
-                return true;
-            }
-        }
-        return false;
-    }
     
     /**
      * Get the number of pending embues (embue selections waiting to be made).
@@ -381,35 +378,12 @@ public class ItemExpService {
     }
     
     /**
-     * Update a weapon's effects based on its current level.
-     * Called after XP is added and a level-up occurs.
-     * 
-     * DAMAGE_PERCENT is always automatically updated.
-     * Other effects (like DURABILITY_SAVE) are only updated if they've been
-     * unlocked via the embue selection system.
-     * 
-     * @param weapon The weapon to update
-     * @param newLevel The weapon's new level
-     * @return New ItemStack with updated effects
+     * Effect stats are now static based on selected boosts - no auto-update on level.
+     * Effects only change when the player selects a boost or new effect in the upgrade UI.
      */
     @Nonnull
     public ItemStack updateWeaponEffects(@Nonnull final ItemStack weapon, final int newLevel) {
-        // Always apply DAMAGE_PERCENT (the base damage scaling)
-        ItemStack updated = this.effectsService.updateDamagePercentEffect(weapon, newLevel);
-        
-        // Apply other effects only if they've been unlocked via embue selection
-        final List<WeaponEffectType> unlockedEffects = this.getUnlockedEffects(updated);
-        for (final WeaponEffectType effectType : unlockedEffects) {
-            // Skip DAMAGE_PERCENT since it's already applied
-            if (effectType == WeaponEffectType.DAMAGE_PERCENT) {
-                continue;
-            }
-            
-            // Update the effect based on weapon level
-            updated = this.effectsService.updateEffectForLevel(updated, effectType, newLevel);
-        }
-        
-        return updated;
+        return weapon;
     }
 
     /**
@@ -455,23 +429,13 @@ public class ItemExpService {
         final double newTotalXp = currentXp + xpToAdd;
         final int levelAfter = this.calculateLevelFromXp(newTotalXp);
 
-        // Add XP to the weapon and handle level up effects if applicable
+        // Add XP to the weapon and handle level up
         if (levelAfter > levelBefore) {
-            // Level up - add XP and update effects
+            // Level up - add XP (effects are static, only change on upgrade selection)
             ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
             
-            // Update effects for the new level
-            updatedWeapon = this.updateWeaponEffects(updatedWeapon, levelAfter);
-            
-            // Check if any milestone levels were crossed (can level up multiple times at once)
-            int newEmbuesToAdd = 0;
-            for (int level = levelBefore + 1; level <= levelAfter; level++) {
-                if (isMilestoneLevel(level)) {
-                    newEmbuesToAdd++;
-                }
-            }
-            
-            // Add pending embues for each milestone crossed
+            // Every level gives 1 pending embue (Vampire Survivors style)
+            final int newEmbuesToAdd = levelAfter - levelBefore;
             for (int i = 0; i < newEmbuesToAdd; i++) {
                 updatedWeapon = this.addPendingEmbue(updatedWeapon);
             }
@@ -487,7 +451,7 @@ public class ItemExpService {
             
             if (newEmbuesToAdd > 0) {
                 System.out.println(String.format(
-                        "[ItemExp] Milestone reached! +%d embue(s) available. Use /eoo to select.",
+                        "[ItemExp] +%d upgrade(s) available. Use /eoo to select.",
                         newEmbuesToAdd
                 ));
             }

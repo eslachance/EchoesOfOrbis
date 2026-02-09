@@ -19,9 +19,11 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.effects.UpgradeOption;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 
@@ -30,8 +32,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * UI page for selecting an embue effect for a weapon.
- * Shows 3 random available effects and allows the player to choose one.
+ * UI page for selecting an upgrade for a weapon (Vampire Survivors style).
+ * Shows 3 random options: boost existing effect or add new effect type.
  */
 public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_Selection_Page.Data> {
 
@@ -44,7 +46,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
     private final int slot;
     
     // Store the available options for this selection
-    private List<WeaponEffectType> availableEffects;
+    private List<UpgradeOption> availableOptions;
 
     public EOO_Embue_Selection_Page(
             @Nonnull PlayerRef playerRef,
@@ -91,37 +93,43 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         // Set weapon info
         final String weaponName = this.formatName(weapon.getItemId());
         uiCommandBuilder.set("#WeaponName.Text", weaponName + " [Lv. " + weaponLevel + "]");
+        uiCommandBuilder.set("#Title.Text", "Choose an Upgrade");
+        uiCommandBuilder.set("#Description.Text", "Select one of 3 random options");
         
-        // Get available effects (up to 3 random options)
-        final List<String> alreadyUnlocked = this.itemExpService.getUnlockedEffectIds(weapon);
-        this.availableEffects = effectsService.getRandomSelectableEffects(category, alreadyUnlocked, 3);
+        // Get available options (boost existing or add new)
+        this.availableOptions = effectsService.getRandomUpgradeOptions(weapon, category, 3);
         
         // Set up each option
         for (int i = 0; i < 3; i++) {
             final String optionId = "#Option" + (i + 1);
             
-            if (i < this.availableEffects.size()) {
-                final WeaponEffectType effectType = this.availableEffects.get(i);
+            if (i < this.availableOptions.size()) {
+                final UpgradeOption option = this.availableOptions.get(i);
+                final WeaponEffectType effectType = option.getEffectType();
                 final WeaponEffectDefinition definition = effectsService.getDefinition(effectType);
                 
                 if (definition != null) {
-                    // Calculate effect value at current weapon level
-                    final int effectLevel = weaponLevel - 1;
+                    final String valueText;
+                    if (option instanceof UpgradeOption.BoostOption boost) {
+                        final String current = definition.getFormattedDescription(boost.getCurrentLevel());
+                        final String next = definition.getFormattedDescription(boost.getCurrentLevel() + 1);
+                        valueText = current + " → " + next;
+                    } else {
+                        valueText = definition.getFormattedDescription(1);
+                    }
                     
                     uiCommandBuilder.set(optionId + "Name.Text", this.formatEffectName(effectType));
-                    uiCommandBuilder.set(optionId + "Value.Text", "Current: " + definition.getFormattedDescription(effectLevel));
+                    uiCommandBuilder.set(optionId + "Value.Text", valueText);
                     uiCommandBuilder.set(optionId + "Desc.Text", this.getEffectDescription(effectType));
                     uiCommandBuilder.set(optionId + ".Visible", true);
                     
-                    // Register click event - pass the option index as data
                     uiEventBuilder.addEventBinding(
-                            CustomUIEventBindingType.Activating, 
-                            optionId, 
+                            CustomUIEventBindingType.Activating,
+                            optionId,
                             EventData.of("SelectedOption", String.valueOf(i))
                     );
                 }
             } else {
-                // Hide unused options
                 uiCommandBuilder.set(optionId + ".Visible", false);
             }
         }
@@ -135,16 +143,17 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
     }
     
     /**
-     * Handle effect selection from event data.
+     * Handle upgrade selection from event data.
      */
-    private void selectEffect(int optionIndex, Ref<EntityStore> ref, Store<EntityStore> store) {
-        if (this.availableEffects == null || optionIndex < 0 || optionIndex >= this.availableEffects.size()) {
+    private void selectUpgrade(int optionIndex, Ref<EntityStore> ref, Store<EntityStore> store) {
+        if (this.availableOptions == null || optionIndex < 0 || optionIndex >= this.availableOptions.size()) {
             return;
         }
         
-        final WeaponEffectType selectedEffect = this.availableEffects.get(optionIndex);
+        final UpgradeOption option = this.availableOptions.get(optionIndex);
+        final WeaponEffectType effectType = option.getEffectType();
+        final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
         
-        // Get the player's inventory
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         if (playerComponent == null) {
             return;
@@ -157,27 +166,26 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             return;
         }
         
-        // Unlock the effect
-        weapon = this.itemExpService.unlockEffect(weapon, selectedEffect);
+        if (option instanceof UpgradeOption.BoostOption boost) {
+            final WeaponEffectInstance existing = effectsService.getEffect(weapon, effectType);
+            if (existing != null) {
+                final WeaponEffectInstance upgraded = new WeaponEffectInstance(effectType, existing.getLevel() + 1);
+                weapon = effectsService.setEffect(weapon, upgraded);
+            }
+        } else {
+            weapon = this.itemExpService.unlockEffect(weapon, effectType);
+            weapon = effectsService.setEffect(weapon, new WeaponEffectInstance(effectType, 1));
+        }
         
-        // Consume one pending embue
         weapon = this.itemExpService.consumePendingEmbue(weapon);
-        
-        // Apply the effect at current level
-        final int weaponLevel = this.itemExpService.getItemLevel(weapon);
-        weapon = this.itemExpService.getEffectsService().updateEffectForLevel(weapon, selectedEffect, weaponLevel);
-        
-        // Update the weapon in inventory
         this.setWeaponInInventory(inventory, weapon);
         
         System.out.println(String.format(
-                "[ItemExp] Embue selected: %s for %s (Level %d)",
-                selectedEffect.getId(),
-                weapon.getItemId(),
-                weaponLevel
+                "[ItemExp] Upgrade selected: %s for %s",
+                effectType.getId(),
+                weapon.getItemId()
         ));
         
-        // Close this page
         playerComponent.getPageManager().setPage(ref, store, Page.None);
     }
     
@@ -235,6 +243,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
     
     private String getEffectDescription(WeaponEffectType type) {
         return switch (type) {
+            case DAMAGE_PERCENT -> "Bonus damage as percentage of hit";
             case DURABILITY_SAVE -> "Chance to not lose durability when hitting";
             case LIFE_LEECH -> "Heal for a portion of damage dealt";
             case CRIT_CHANCE -> "Increased chance to deal critical hits";
@@ -280,7 +289,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             try {
                 final int optionIndex = Integer.parseInt(data.selectedOption);
                 if (optionIndex >= 0 && optionIndex < 3) {
-                    this.selectEffect(optionIndex, ref, store);
+                    this.selectUpgrade(optionIndex, ref, store);
                 }
             } catch (NumberFormatException ignored) {
                 // Invalid option index

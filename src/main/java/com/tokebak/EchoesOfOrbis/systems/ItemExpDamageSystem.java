@@ -307,24 +307,11 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 levelAfter, xpAfter, isLevelUp
         ));
         
-        // Update effects for the new level
+        // Effects are static - only change when player selects upgrade (no auto-update)
         weapon = this.itemExpService.updateWeaponEffects(weapon, levelAfter);
         
-        // Check for milestone embues (any milestone levels crossed between before and after)
-        // Milestones are: 5, 10, 15, 20, 25
-        int newEmbuesToAdd = 0;
-        System.out.println(String.format(
-                "[EOO] Checking milestones from level %d to %d (milestones: 5,10,15,20,25)",
-                levelBefore + 1, levelAfter
-        ));
-        for (int level = levelBefore + 1; level <= levelAfter; level++) {
-            final boolean isMilestone = ItemExpService.isMilestoneLevel(level);
-            System.out.println(String.format("[EOO] Level %d - isMilestone=%s", level, isMilestone));
-            if (isMilestone) {
-                newEmbuesToAdd++;
-            }
-        }
-        System.out.println(String.format("[EOO] Total embues to add: %d", newEmbuesToAdd));
+        // Every level crossed gives 1 pending embue (Vampire Survivors style)
+        final int newEmbuesToAdd = levelAfter - levelBefore;
         for (int i = 0; i < newEmbuesToAdd; i++) {
             weapon = this.itemExpService.addPendingEmbue(weapon);
         }

@@ -38,7 +38,14 @@ public class EchoesOfOrbis extends JavaPlugin {
 
         // ItemExpService handles XP/leveling and coordinates with effects service
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
-        
+        ItemExpService.setInstance(this.itemExpService);
+
+        // Register the custom F-key interaction for upgrade selection
+        this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
+                .register(com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.ID,
+                        com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.class,
+                        com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.CODEC);
+
         // Register the damage system that processes combat events
         // This handles XP gain, weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
@@ -58,7 +65,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         System.out.println("[EOO]: Embue selection available at levels 5, 10, 15, 20, 25");
 
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
-            event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded, /eoo for UI"));
+            event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Press F to upgrade weapons, or /eoo upgrade. /eoo for full UI"));
         });
     }
 }
