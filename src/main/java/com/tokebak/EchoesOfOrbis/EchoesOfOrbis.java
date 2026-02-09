@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
-
+import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
@@ -53,6 +53,8 @@ public class EchoesOfOrbis extends JavaPlugin {
         );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
+
+        com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
         System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
