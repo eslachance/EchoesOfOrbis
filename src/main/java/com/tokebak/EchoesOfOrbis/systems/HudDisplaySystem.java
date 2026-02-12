@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * System that manages the EOO Status HUD display based on active weapon.
  * Shows the HUD when the player switches to a weapon with effects, hides it otherwise.
+ * Also provides methods to update the HUD when XP changes.
  */
 public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
     
@@ -36,6 +37,12 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
      * Used to detect when the slot has changed.
      */
     private final Map<UUID, Byte> lastActiveSlot = new ConcurrentHashMap<>();
+    
+    /**
+     * Tracks the active EOO_Status_Hud instance per player UUID.
+     * Used to update the HUD when XP changes without switching weapons.
+     */
+    private final Map<UUID, EOO_Status_Hud> activeHuds = new ConcurrentHashMap<>();
     
     public HudDisplaySystem(@Nonnull final ItemExpService itemExpService) {
         this.itemExpService = itemExpService;
@@ -139,16 +146,39 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
         // Check if the current item is a trackable weapon with effects
         final boolean hasWeaponWithEffects = this.hasEffects(currentItem);
         
+        // Get player UUID for tracking
+        final UUIDComponent uuidComponent = store.getComponent(entityRef, UUIDComponent.getComponentType());
+        final UUID playerUuid = uuidComponent != null ? uuidComponent.getUuid() : null;
+        
         // Update HUD based on whether the weapon has effects
         if (hasWeaponWithEffects) {
-            // Show the status HUD if not already showing it
-            if (!(player.getHudManager().getCustomHud() instanceof EOO_Status_Hud)) {
-                player.getHudManager().setCustomHud(playerRef, new EOO_Status_Hud(playerRef));
+            // Show the status HUD if not already showing it, or update if already showing
+            var currentHud = player.getHudManager().getCustomHud();
+            if (currentHud instanceof EOO_Status_Hud) {
+                // Already showing - just update with new weapon data
+                ((EOO_Status_Hud) currentHud).updateWithWeapon(currentItem, currentSlot);
+                // Track this HUD instance
+                if (playerUuid != null) {
+                    this.activeHuds.put(playerUuid, (EOO_Status_Hud) currentHud);
+                }
+            } else {
+                // Create new HUD and update it with weapon data
+                EOO_Status_Hud newHud = new EOO_Status_Hud(playerRef, this.itemExpService);
+                player.getHudManager().setCustomHud(playerRef, newHud);
+                newHud.updateWithWeapon(currentItem, currentSlot);
+                // Track this HUD instance
+                if (playerUuid != null) {
+                    this.activeHuds.put(playerUuid, newHud);
+                }
             }
         } else {
             // Hide the HUD (show blank HUD) if not already hidden
             if (!(player.getHudManager().getCustomHud() instanceof BlankHud)) {
                 player.getHudManager().setCustomHud(playerRef, new BlankHud(playerRef));
+            }
+            // Remove from tracking
+            if (playerUuid != null) {
+                this.activeHuds.remove(playerUuid);
             }
         }
     }
@@ -172,9 +202,27 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
     }
     
     /**
+     * Update the HUD for a specific player with their current weapon.
+     * Call this when XP changes to refresh the display.
+     * 
+     * @param playerRef The player whose HUD should be updated
+     * @param weapon The current weapon to display (should be the active hotbar item)
+     * @param slot The hotbar slot of the weapon
+     */
+    public void updateHudForPlayer(@Nonnull final PlayerRef playerRef, @Nullable final ItemStack weapon, byte slot) {
+        final UUID playerUuid = playerRef.getUuid();
+        final EOO_Status_Hud hud = this.activeHuds.get(playerUuid);
+        
+        if (hud != null) {
+            hud.updateWithWeapon(weapon, slot);
+        }
+    }
+    
+    /**
      * Clean up tracking data when a player disconnects.
      */
     public void cleanupPlayer(@Nonnull final UUID playerUuid) {
         this.lastActiveSlot.remove(playerUuid);
+        this.activeHuds.remove(playerUuid);
     }
 }

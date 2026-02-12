@@ -36,6 +36,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
     private final ItemExpService itemExpService;
     private final EchoesOfOrbisConfig config;
+    private final HudDisplaySystem hudDisplaySystem;
     
     /**
      * Time of inactivity (no damage dealt) before flushing pending XP (in milliseconds).
@@ -60,11 +61,13 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
-            @Nonnull final EchoesOfOrbisConfig config
+            @Nonnull final EchoesOfOrbisConfig config,
+            @Nonnull final HudDisplaySystem hudDisplaySystem
     ) {
         super();
         this.itemExpService = itemExpService;
         this.config = config;
+        this.hudDisplaySystem = hudDisplaySystem;
     }
 
     /**
@@ -184,6 +187,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, false);
                 // Get the updated weapon after flush
                 weapon = inventory.getActiveHotbarItem();
+                // Update the HUD after flushing idle XP
+                this.hudDisplaySystem.updateHudForPlayer(playerRef, weapon, activeSlot);
             }
         }
         
@@ -196,6 +201,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         
         // Cache the XP
         this.itemExpService.addPendingXp(playerRef, activeSlot, xpGained);
+        
+        // Update the HUD to show the new pending XP (even though not flushed yet)
+        this.hudDisplaySystem.updateHudForPlayer(playerRef, weapon, activeSlot);
         
         // If level up, check if we're in rapid-fire combat - if so, delay the level up
         if (wouldLevelUp) {
@@ -222,6 +230,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             
             this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, true);
             final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
+            
+            // Update the HUD with the new level
+            this.hudDisplaySystem.updateHudForPlayer(playerRef, updatedWeapon, activeSlot);
             
             // Send level up notifications
             ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, levelAfter);

@@ -51,15 +51,16 @@ public class EchoesOfOrbis extends JavaPlugin {
                         com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.class,
                         com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.CODEC);
 
+        // Register the HUD display system that shows/hides the status HUD based on active weapon
+        // Must be registered BEFORE ItemExpDamageSystem so it can receive XP update notifications
+        this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService);
+        this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
+
         // Register the damage system that processes combat events
         // This handles XP gain, weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
-                new ItemExpDamageSystem(this.itemExpService, cfg)
+                new ItemExpDamageSystem(this.itemExpService, cfg, this.hudDisplaySystem)
         );
-
-        // Register the HUD display system that shows/hides the status HUD based on active weapon
-        this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService);
-        this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
 

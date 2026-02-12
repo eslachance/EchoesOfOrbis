@@ -1,19 +1,39 @@
-$Common = "Common.ui";
-
 Group {
-  LayoutMode: Right;
-
-  Anchor: (Top: 20, Height: 60);
-
-  Group #MyPanel {
-    Background: $Common.@InputBoxBackground;
-    Anchor: (Left: 20, Top: 20, Width: 300, Height: 200);
-    Padding: (Horizontal: 20, Vertical: 10);
-    LayoutMode: Right;
-
-    Label #MyLabel {
-      Style: (FontSize: 32, Alignment: Center);
-      Text: "Hello, World!";
+    // Container at bottom center, above hotbar
+    Anchor: (Left: 0, Right: 0, Bottom: 5, Height: 25);
+    LayoutMode: Center;
+    
+    Group #XpBarContainer {
+        Anchor: (Width: 400, Height: 25);
+        
+        // Background - semi-transparent dark
+        Group {
+            Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
+            Background: #00000080; // 50% transparent black
+        }
+        
+        // Fill Container (Insets for border effect)
+        Group {
+             Anchor: (Left: 2, Right: 2, Top: 2, Bottom: 2);
+             
+             // Blue Background (empty bar)
+             Group {
+                 Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
+                 Background: #1e3a8a; // Dark blue background
+             }
+             
+             // The Fill Bar (Width controlled by Java) - Yellow progress
+             Group #XpFill {
+                 Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
+                 Background: #fbbf24; // Yellow/gold fill
+             }
+        }
+        
+        // Text Overlay
+        Label #XpText {
+            Text: "0/0 (0%)";
+            Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
+            Style: (FontSize: 14, TextColor: #FFFFFF, Alignment: Center, VerticalAlignment: Center);
+        }
     }
-  }
 }
