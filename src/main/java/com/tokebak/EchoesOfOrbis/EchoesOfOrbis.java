@@ -1,16 +1,20 @@
 package com.tokebak.EchoesOfOrbis;
 
-import com.hypixel.hytale.component.system.ISystem;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.systems.HudDisplaySystem;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
@@ -19,6 +23,7 @@ public class EchoesOfOrbis extends JavaPlugin {
     private final Config<EchoesOfOrbisConfig> config;
     private WeaponEffectsService weaponEffectsService;
     private ItemExpService itemExpService;
+    private HudDisplaySystem hudDisplaySystem;
 
     public EchoesOfOrbis(@NonNullDecl JavaPluginInit init) {
         super(init);
@@ -30,7 +35,7 @@ public class EchoesOfOrbis extends JavaPlugin {
     @Override
     protected void setup () {
         super.setup();
-        final EchoesOfOrbisConfig cfg = (EchoesOfOrbisConfig) this.config.get();
+        final EchoesOfOrbisConfig cfg = this.config.get();
         
         // Initialize services
         // WeaponEffectsService manages effect definitions, processors, and application
@@ -49,25 +54,29 @@ public class EchoesOfOrbis extends JavaPlugin {
         // Register the damage system that processes combat events
         // This handles XP gain, weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
-                (ISystem) new ItemExpDamageSystem(this.itemExpService, cfg)
+                new ItemExpDamageSystem(this.itemExpService, cfg)
         );
+
+        // Register the HUD display system that shows/hides the status HUD based on active weapon
+        this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService);
+        this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
-        System.out.println("[EOO]: Weapon Effects System initialized (max level 25):");
-        System.out.println("[EOO]:   - DAMAGE_PERCENT: 5% -> 100% (automatic)");
-        System.out.println("[EOO]:   - DURABILITY_SAVE: 10% -> 100% (embue selection)");
-        System.out.println("[EOO]:   - POISON_ON_HIT: 10% -> 50% chance (embue selection)");
-        System.out.println("[EOO]:   - FIRE_ON_HIT: 15% -> 60% chance (embue selection)");
-        System.out.println("[EOO]:   - SLOW_ON_HIT: 10% -> 50% chance (embue selection)");
-        System.out.println("[EOO]:   - FREEZE_ON_HIT: 5% -> 25% chance (DISABLED)");
-        System.out.println("[EOO]: Embue selection available at levels 5, 10, 15, 20, 25");
 
+        // Send welcome message when player joins
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
-            event.getPlayer().sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Press F to upgrade weapons, or /eoo for full UI"));
+            Player player = event.getPlayer();
+            player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
+        });
+
+        // Clean up tracking data when player disconnects
+        this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
+            PlayerRef playerRef = event.getPlayerRef();
+            this.hudDisplaySystem.cleanupPlayer(playerRef.getUuid());
         });
     }
 }

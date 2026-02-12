@@ -1,0 +1,19 @@
+$Common = "Common.ui";
+
+Group {
+  LayoutMode: Right;
+
+  Anchor: (Top: 20, Height: 60);
+
+  Group #MyPanel {
+    Background: $Common.@InputBoxBackground;
+    Anchor: (Left: 20, Top: 20, Width: 300, Height: 200);
+    Padding: (Horizontal: 20, Vertical: 10);
+    LayoutMode: Right;
+
+    Label #MyLabel {
+      Style: (FontSize: 32, Alignment: Center);
+      Text: "Hello, World!";
+    }
+  }
+}
