@@ -6,26 +6,26 @@ Group {
     Group #XpBarContainer {
         Anchor: (Width: 400, Height: 25);
         
-        // Background - semi-transparent dark
+        // Background - dark gray border
         Group {
             Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
-            Background: #00000080; // 50% transparent black
+            Background: #272F40; // Very dark gray border
         }
         
         // Fill Container (Insets for border effect)
         Group {
              Anchor: (Left: 2, Right: 2, Top: 2, Bottom: 2);
              
-             // Blue Background (empty bar)
+             // Dark background (empty bar)
              Group {
                  Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
-                 Background: #1e3a8a; // Dark blue background
+                 Background: #161F2B; // Dark gray background
              }
              
-             // The Fill Bar (Width controlled by Java) - Yellow progress
+             // The Fill Bar (Width controlled by Java) - Teal/cyan progress
              Group #XpFill {
                  Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
-                 Background: #fbbf24; // Yellow/gold fill
+                 Background:#4a618f; // Dark teal/cyan fill
              }
         }
         
@@ -33,7 +33,7 @@ Group {
         Label #XpText {
             Text: "0/0 (0%)";
             Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
-            Style: (FontSize: 14, TextColor: #FFFFFF, Alignment: Center, VerticalAlignment: Center);
+            Style: (FontSize: 14, TextColor:#bed2e7, Alignment: Center, VerticalAlignment: Center);
         }
     }
 }
