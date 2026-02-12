@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 
 public class EOO_Status_Hud extends CustomUIHud {
     
-    private static final int BAR_MAX_WIDTH = 396; // 400px container - 2px border on each side
+    private static final int BAR_MAX_WIDTH = 296; // 400px container - 2px border on each side
     
     @Nonnull
     private final ItemExpService itemExpService;
