@@ -234,13 +234,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             // Update the HUD with the new level
             this.hudDisplaySystem.updateHudForPlayer(playerRef, updatedWeapon, activeSlot);
             
-            // Send level up notifications
-            ItemExpNotifications.sendLevelUpNotification(playerRef, updatedWeapon, levelAfter);
-            
-            final int pendingEmbues = this.itemExpService.getPendingEmbues(updatedWeapon);
-            if (pendingEmbues > 0) {
-                ItemExpNotifications.sendEmbueAvailableNotification(playerRef, pendingEmbues);
-            }
+            // Send level up notification with icon
+            ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, updatedWeapon, levelAfter, this.itemExpService);
             
             if (this.config.isDebug()) {
                 final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();

@@ -1,6 +1,7 @@
 package com.tokebak.EchoesOfOrbis.utils;
 
 
+import com.hypixel.hytale.protocol.ItemWithAllMetadata;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.io.PacketHandler;
@@ -85,12 +86,13 @@ public final class ItemExpNotifications {
     }
 
     /**
-     * Send a notification showing the current item's XP status.
-     * Useful for a command like /itemxp or inspecting a weapon.
+     * Send a notification when a weapon levels up, using the new notification format with icon.
+     * Combines level up message and embue availability into a single notification.
      */
-    public static void sendStatusNotification(
+    public static void sendLevelUpNotificationWithIcon(
             @Nonnull final PlayerRef playerRef,
             @Nonnull final ItemStack weapon,
+            final int newLevel,
             @Nonnull final ItemExpService service
     ) {
         final PacketHandler packetHandler = playerRef.getPacketHandler();
@@ -99,77 +101,89 @@ public final class ItemExpNotifications {
         }
 
         final String itemName = getDisplayName(weapon);
-        final double totalXp = service.getItemXp(weapon);
-        final int level = service.getItemLevel(weapon);
-        final String progress = service.getProgressString(weapon);
-
-        // Format: "Iron Sword | Total XP: 1234 | Level 5 | 150/200 XP (75%)"
-        final String text = String.format(
-                "%s | Total XP: %.0f | %s",
-                itemName,
-                totalXp,
-                progress
-        );
-
-        final Message message = Message.raw(text).color(COLOR_ITEM_NAME);
-        NotificationUtil.sendNotification(packetHandler, message);
-    }
-
-    /**
-     * Send a notification when embues are available for selection.
-     */
-    public static void sendEmbueAvailableNotification(
-            @Nonnull final PlayerRef playerRef,
-            final int embueCount
-    ) {
-        final PacketHandler packetHandler = playerRef.getPacketHandler();
-        if (packetHandler == null) {
-            return;
+        
+        // Primary message: Level up info
+        final Message primaryMessage = Message.raw(
+                String.format("LEVEL UP! %s reached Level %d!", itemName, newLevel)
+        ).color(COLOR_LEVEL_UP);
+        
+        // Secondary message: Embue availability or XP progress
+        final int pendingEmbues = service.getPendingEmbues(weapon);
+        final Message secondaryMessage;
+        
+        if (pendingEmbues > 0) {
+            secondaryMessage = Message.raw(
+                    String.format("%d Upgrade%s available! Press F to choose!", 
+                            pendingEmbues, 
+                            pendingEmbues == 1 ? "" : "s")
+            ).color(COLOR_EMBUE);
+        } else {
+            // Show progress if no embues pending
+            final String progress = service.getProgressString(weapon);
+            secondaryMessage = Message.raw(progress).color(COLOR_PROGRESS);
         }
-
-        // Format: "2 Upgrades available! Press F to choose! (when not looking at a chest/NPC)"
-        final String text = String.format(
-                "%d Upgrade%s available! Press F to choose!",
-                embueCount,
-                embueCount == 1 ? "" : "s"
-        );
-
-        final Message message = Message.raw(text).color(COLOR_EMBUE);
-        NotificationUtil.sendNotification(packetHandler, message);
+        
+        // Use the weapon as the icon
+        final ItemWithAllMetadata icon = (ItemWithAllMetadata) weapon.toPacket();
+        
+        NotificationUtil.sendNotification(packetHandler, primaryMessage, secondaryMessage, icon);
     }
 
     /**
      * Get a display-friendly name for an item.
-     * Converts "hytale:iron_sword" to "Iron Sword"
+     * Uses translation if available, falls back to formatting the item ID.
      */
     @Nonnull
     private static String getDisplayName(@Nonnull final ItemStack item) {
-        String itemId = item.getItemId();
-
-        // Remove namespace prefix (e.g., "hytale:")
-        final int colonIndex = itemId.indexOf(':');
-        if (colonIndex != -1) {
-            itemId = itemId.substring(colonIndex + 1);
+        // Try to get the translated name first
+        final String translationKey = item.getItem().getTranslationKey();
+        final String translated = Message.translation(translationKey).getAnsiMessage();
+        if (translated != null && !translated.isEmpty() && !translated.equals(translationKey)) {
+            return translated;
         }
-
-        // Replace underscores with spaces and capitalize each word
-        final String[] words = itemId.split("_");
+        
+        // Fallback: format the item ID (e.g., "Weapon_Sword_Iron" -> "Iron Sword")
+        return formatItemId(item.getItem().getId());
+    }
+    
+    /**
+     * Fallback formatter for item IDs.
+     * Converts "Weapon_Sword_Iron" to "Iron Sword".
+     */
+    @Nonnull
+    private static String formatItemId(@Nonnull final String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "Unknown";
+        }
+        
+        String cleaned = raw;
+        
+        // Strip common prefixes
+        if (cleaned.startsWith("Weapon_")) {
+            cleaned = cleaned.substring(7);
+        }
+        if (cleaned.startsWith("Tool_")) {
+            cleaned = cleaned.substring(5);
+        }
+        
+        // Split by underscore and reverse order (e.g., "Sword_Iron" -> "Iron Sword")
+        final String[] parts = cleaned.split("_");
         final StringBuilder result = new StringBuilder();
-
-        for (final String word : words) {
-            if (word.isEmpty()) {
+        
+        for (int i = parts.length - 1; i >= 0; i--) {
+            if (parts[i].isEmpty()) {
                 continue;
             }
             if (result.length() > 0) {
                 result.append(" ");
             }
             // Capitalize first letter
-            result.append(Character.toUpperCase(word.charAt(0)));
-            if (word.length() > 1) {
-                result.append(word.substring(1).toLowerCase());
+            result.append(Character.toUpperCase(parts[i].charAt(0)));
+            if (parts[i].length() > 1) {
+                result.append(parts[i].substring(1).toLowerCase());
             }
         }
-
+        
         return result.toString();
     }
 }
