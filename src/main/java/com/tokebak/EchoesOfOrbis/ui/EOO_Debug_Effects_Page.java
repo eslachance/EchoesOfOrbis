@@ -312,31 +312,8 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
     }
     
     private String getEffectDescription(WeaponEffectType type) {
-        return switch (type) {
-            case DAMAGE_PERCENT -> "Bonus damage as percentage of hit";
-            case DURABILITY_SAVE -> "Chance to not lose durability when hitting";
-            case LIFE_LEECH -> "Heal for a portion of damage dealt";
-            case CRIT_CHANCE -> "Increased chance to deal critical hits";
-            case CRIT_DAMAGE -> "Increased critical hit damage multiplier";
-            case FIRE_ON_HIT -> "Chance to set enemies on fire";
-            case POISON_ON_HIT -> "Chance to poison enemies";
-            case STUN_ON_HIT -> "Chance to stun enemies";
-            case SLOW_ON_HIT -> "Chance to slow enemy movement";
-            case FREEZE_ON_HIT -> "Chance to freeze enemies in place";
-            case BLEEDING -> "Bonus damage to bleeding targets";
-            case AMMO_SAVE -> "Chance to not consume ammo";
-            case MULTISHOT -> "Chance to fire extra projectiles";
-            case PROJECTILE_SPEED -> "Increased projectile velocity";
-            case PIERCING -> "Projectiles pierce through enemies";
-            case MANA_COST_REDUCTION -> "Reduced mana cost for spells";
-            case CHAIN_SPELL -> "Spells chain to nearby enemies";
-            case SPELL_AREA -> "Increased spell area of effect";
-            case COOLDOWN_REDUCTION -> "Reduced spell cooldowns";
-            case ATTACK_SPEED -> "Increased attack speed";
-            case KNOCKBACK -> "Increased knockback on hit";
-            case HOMING -> "Projectiles track targets";
-            case PLAYER_STAT -> "Modifies player stats while held";
-        };
+        final String desc = this.itemExpService.getEffectsService().getShortDescription(type);
+        return desc != null ? desc : "Not implemented";
     }
 
     @Override

@@ -4,15 +4,15 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.WeaponMaterialService;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.DurabilitySaveProcessor;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.DamagePercentEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.DurabilitySaveEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.FireOnHitEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.FreezeOnHitEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.LifeLeechEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.MultishotEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.PoisonOnHitEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.SlowOnHitEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.FireOnHitProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.FreezeOnHitProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.LifeLeechProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.MultishotProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.PoisonOnHitProcessor;
-import com.tokebak.EchoesOfOrbis.services.effects.processors.SlowOnHitProcessor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -23,164 +23,69 @@ import javax.annotation.Nullable;
 
 /**
  * Central service for managing weapon effects.
- * 
- * Responsibilities:
- * - Register and store effect definitions (how effects behave)
- * - Register effect processors (code that applies effects)
- * - Read/write effect instances from weapon metadata
- * - Apply effects at appropriate times (on damage, on equip, etc.)
+ *
+ * Effect modules register themselves here and provide definition, processor, and display strings.
+ * The service is a registry; each EffectModule is self-contained (values, processor, descriptions).
  */
 public class WeaponEffectsService {
-    
+
     /**
      * Metadata key for storing effects on weapons.
      */
     public static final String META_KEY_EFFECTS = "ItemExp_Effects";
-    
+
     /**
      * Codec for serializing effect lists to metadata.
      */
-    private static final Codec<WeaponEffectInstance[]> EFFECTS_CODEC = 
+    private static final Codec<WeaponEffectInstance[]> EFFECTS_CODEC =
             new ArrayCodec<>(WeaponEffectInstance.CODEC, WeaponEffectInstance[]::new);
-    
-    /**
-     * Global definitions for each effect type.
-     */
+
     private final Map<WeaponEffectType, WeaponEffectDefinition> definitions;
-    
-    /**
-     * Processors for each effect type.
-     */
     private final Map<WeaponEffectType, EffectProcessor> processors;
-    
+    private final Map<WeaponEffectType, EffectModule> modules;
+
     public WeaponEffectsService() {
         this.definitions = new EnumMap<>(WeaponEffectType.class);
         this.processors = new EnumMap<>(WeaponEffectType.class);
-        
-        // Register default definitions and processors
+        this.modules = new EnumMap<>(WeaponEffectType.class);
+
         this.registerDefaults();
     }
-    
+
     /**
-     * Register the default effect definitions and processors.
-     * Values are smaller per boost to avoid overpowered weapons over 25 levels.
-     * Each boost adds a fixed amount; effect level = number of times boosted.
+     * Register effect modules. Each module is self-contained (definition, processor, display strings).
      */
     private void registerDefaults() {
-        // DAMAGE_PERCENT: 3% at level 1, +2% per boost. 8 boosts ≈ 17% total.
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_PERCENT)
-                        .baseValue(0.03)       // 3% at effect level 1
-                        .valuePerLevel(0.02)   // +2% per additional boost
-                        .maxValue(0.25)        // Cap at 25% bonus
-                        .maxLevel(10)
-                        .description("+{value} damage")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.DAMAGE_PERCENT, new DamagePercentProcessor());
-
-        // LIFE_LEECH: 1% at level 1, +1% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.LIFE_LEECH)
-                        .baseValue(0.01)      // 1% at effect level 1
-                        .valuePerLevel(0.01)  // +1% per boost
-                        .maxValue(0.15)       // Cap at 15%
-                        .maxLevel(10)
-                        .description("Heal {value} of damage dealt")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.LIFE_LEECH, new LifeLeechProcessor());
-        
-        // DURABILITY_SAVE: 5% at level 1, +5% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.DURABILITY_SAVE)
-                        .baseValue(0.05)      // 5% at effect level 1
-                        .valuePerLevel(0.05)  // +5% per boost
-                        .maxValue(0.50)       // Cap at 50%
-                        .maxLevel(10)
-                        .description("{value} chance to save durability")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.DURABILITY_SAVE, new DurabilitySaveProcessor());
-        
-        // POISON_ON_HIT: 5% at level 1, +2% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.POISON_ON_HIT)
-                        .baseValue(0.05)      // 5% chance at effect level 1
-                        .valuePerLevel(0.02)  // +2% per boost
-                        .maxValue(0.25)       // Cap at 25% chance
-                        .maxLevel(10)
-                        .description("{value} chance to poison on hit")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.POISON_ON_HIT, new PoisonOnHitProcessor());
-        
-        // FIRE_ON_HIT: 5% at level 1, +2% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.FIRE_ON_HIT)
-                        .baseValue(0.05)      // 5% chance at effect level 1
-                        .valuePerLevel(0.02)  // +2% per boost
-                        .maxValue(0.25)       // Cap at 25% chance
-                        .maxLevel(10)
-                        .description("{value} chance to burn on hit")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.FIRE_ON_HIT, new FireOnHitProcessor());
-        
-        // SLOW_ON_HIT: 5% at level 1, +2% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.SLOW_ON_HIT)
-                        .baseValue(0.05)      // 5% chance at effect level 1
-                        .valuePerLevel(0.02)  // +2% per boost
-                        .maxValue(0.25)       // Cap at 25% chance
-                        .maxLevel(10)
-                        .description("{value} chance to slow on hit")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.SLOW_ON_HIT, new SlowOnHitProcessor());
-        
-        // FREEZE_ON_HIT: 2% at level 1, +1% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.FREEZE_ON_HIT)
-                        .baseValue(0.02)      // 2% chance at effect level 1
-                        .valuePerLevel(0.01)  // +1% per boost
-                        .maxValue(0.12)       // Cap at 12% chance
-                        .maxLevel(10)
-                        .description("{value} chance to freeze on hit")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.FREEZE_ON_HIT, new FreezeOnHitProcessor());
-        
-        // MULTISHOT: 5% at level 1, +2% per boost
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.MULTISHOT)
-                        .baseValue(0.05)      // 5% chance at effect level 1
-                        .valuePerLevel(0.02)  // +2% per boost
-                        .maxValue(0.25)       // Cap at 25% chance
-                        .maxLevel(10)
-                        .description("{value} chance for extra projectile")
-                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
-                        .build()
-        );
-        this.registerProcessor(WeaponEffectType.MULTISHOT, new MultishotProcessor());
+        this.register(new DamagePercentEffectModule());
+        this.register(new LifeLeechEffectModule());
+        this.register(new DurabilitySaveEffectModule());
+        this.register(new PoisonOnHitEffectModule());
+        this.register(new FireOnHitEffectModule());
+        this.register(new SlowOnHitEffectModule());
+        this.register(new FreezeOnHitEffectModule());
+        this.register(new MultishotEffectModule());
     }
-    
+
     /**
-     * Register an effect definition.
+     * Register an effect module. The module provides definition, processor, and short description.
+     * Call this to add new effects or from mods.
+     */
+    public void register(@Nonnull final EffectModule module) {
+        final WeaponEffectType type = module.getType();
+        this.definitions.put(type, module.getDefinition());
+        this.processors.put(type, module.getProcessor());
+        this.modules.put(type, module);
+    }
+
+    /**
+     * Register an effect definition (for backward compatibility or when not using a full module).
      */
     public void registerDefinition(@Nonnull final WeaponEffectDefinition definition) {
         this.definitions.put(definition.getType(), definition);
     }
-    
+
     /**
-     * Register an effect processor.
+     * Register an effect processor (for backward compatibility or when not using a full module).
      */
     public void registerProcessor(
             @Nonnull final WeaponEffectType type,
@@ -204,7 +109,17 @@ public class WeaponEffectsService {
     public EffectProcessor getProcessor(@Nonnull final WeaponEffectType type) {
         return this.processors.get(type);
     }
-    
+
+    /**
+     * Get the short description for UI (e.g. "Bonus damage as percentage of hit").
+     * Returns null if no module is registered for this effect type.
+     */
+    @Nullable
+    public String getShortDescription(@Nonnull final WeaponEffectType type) {
+        final EffectModule module = this.modules.get(type);
+        return module == null ? null : module.getShortDescription();
+    }
+
     // ==================== Metadata Read/Write ====================
     
     /**
