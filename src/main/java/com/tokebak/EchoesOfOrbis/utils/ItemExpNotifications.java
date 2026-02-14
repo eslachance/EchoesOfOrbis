@@ -20,7 +20,6 @@ public final class ItemExpNotifications {
     // Color constants for notifications
     private static final Color COLOR_XP_GAIN = new Color(0x55FF55);    // Bright green
     private static final Color COLOR_LEVEL_UP = new Color(0xFFD700);   // Gold
-    private static final Color COLOR_ITEM_NAME = new Color(0x00BFFF);  // Deep sky blue
     private static final Color COLOR_PROGRESS = new Color(0xAAAAAA);   // Gray
     private static final Color COLOR_EMBUE = new Color(0x9966FF);      // Purple for embue
 
@@ -56,32 +55,6 @@ public final class ItemExpNotifications {
         );
 
         final Message message = Message.raw(text).color(COLOR_XP_GAIN);
-        NotificationUtil.sendNotification(packetHandler, message);
-    }
-
-    /**
-     * Send a notification when a weapon levels up.
-     */
-    public static void sendLevelUpNotification(
-            @Nonnull final PlayerRef playerRef,
-            @Nonnull final ItemStack weapon,
-            final int newLevel
-    ) {
-        final PacketHandler packetHandler = playerRef.getPacketHandler();
-        if (packetHandler == null) {
-            return;
-        }
-
-        final String itemName = getDisplayName(weapon);
-
-        // Format: "LEVEL UP! Iron Sword reached Level 5!"
-        final String text = String.format(
-                "LEVEL UP! %s reached Level %d!",
-                itemName,
-                newLevel
-        );
-
-        final Message message = Message.raw(text).color(COLOR_LEVEL_UP);
         NotificationUtil.sendNotification(packetHandler, message);
     }
 

@@ -154,11 +154,4 @@ public class PoisonOnHitProcessor implements EffectProcessor {
             }
         }
     }
-    
-    public void resetCache() {
-        this.cachedPoisonEffect = null;
-        this.cachedPoisonEffectId = null;
-        this.effectLookupAttempted = false;
-        this.targetCooldowns.clear();
-    }
 }

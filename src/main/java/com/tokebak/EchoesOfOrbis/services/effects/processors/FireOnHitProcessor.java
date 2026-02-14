@@ -157,11 +157,4 @@ public class FireOnHitProcessor implements EffectProcessor {
             }
         }
     }
-    
-    public void resetCache() {
-        this.cachedBurnEffect = null;
-        this.cachedBurnEffectId = null;
-        this.effectLookupAttempted = false;
-        this.targetCooldowns.clear();
-    }
 }

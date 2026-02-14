@@ -146,10 +146,4 @@ public class SlowOnHitProcessor implements EffectProcessor {
             }
         }
     }
-    
-    public void resetCache() {
-        this.cachedSlowEffect = null;
-        this.effectLookupAttempted = false;
-        this.targetCooldowns.clear();
-    }
 }

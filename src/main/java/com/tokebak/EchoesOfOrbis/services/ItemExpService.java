@@ -169,15 +169,6 @@ public class ItemExpService {
     }
     
     /**
-     * Add a pending embue to the weapon.
-     * Returns a new ItemStack with incremented pending count.
-     */
-    @Nonnull
-    public ItemStack addPendingEmbue(@Nonnull final ItemStack item) {
-        return addPendingEmbues(item, 1);
-    }
-
-    /**
      * Add multiple pending embues in one metadata write.
      */
     @Nonnull
@@ -211,22 +202,6 @@ public class ItemExpService {
             return new ArrayList<>();
         }
         return new ArrayList<>(Arrays.asList(effects));
-    }
-    
-    /**
-     * Get the list of unlocked effect types for this weapon.
-     */
-    @Nonnull
-    public List<WeaponEffectType> getUnlockedEffects(@Nullable final ItemStack item) {
-        final List<String> ids = this.getUnlockedEffectIds(item);
-        final List<WeaponEffectType> types = new ArrayList<>();
-        for (final String id : ids) {
-            final WeaponEffectType type = WeaponEffectType.fromId(id);
-            if (type != null) {
-                types.add(type);
-            }
-        }
-        return types;
     }
     
     /**
@@ -454,16 +429,6 @@ public class ItemExpService {
     }
 
     /**
-     * Get XP needed to go from current level to next level.
-     */
-    public double getXpToNextLevel(final int currentLevel) {
-        if (currentLevel >= this.config.getMaxLevel()) {
-            return 0.0; // Already at max
-        }
-        return this.getXpRequiredForLevel(currentLevel + 1) - this.getXpRequiredForLevel(currentLevel);
-    }
-    
-    /**
      * Get the maximum level a weapon can reach.
      */
     public int getMaxLevel() {
@@ -497,162 +462,6 @@ public class ItemExpService {
     @Nonnull
     public ItemStack updateWeaponEffects(@Nonnull final ItemStack weapon, final int newLevel) {
         return weapon;
-    }
-
-    /**
-     * Add XP to the player's currently held weapon.
-     * 
-     * XP is persisted immediately to avoid data loss on server restart.
-     * The caller is responsible for swapping the weapon in the hotbar
-     * using a method that preserves SignatureEnergy.
-     *
-     * @param playerRef The player reference
-     * @param inventory The player's inventory
-     * @param xpToAdd Amount of XP to add
-     * @return The LevelUpResult with before/after levels and success status
-     */
-    @Nonnull
-    public LevelUpResult addXpToHeldWeapon(
-            @Nonnull final PlayerRef playerRef,
-            @Nonnull final Inventory inventory,
-            final double xpToAdd
-    ) {
-        // Get the currently held item
-        final ItemStack currentWeapon = inventory.getActiveHotbarItem();
-        if (currentWeapon == null) {
-            return LevelUpResult.failure(); // Nothing in hand
-        }
-
-        // Get the slot index
-        final byte slot = inventory.getActiveHotbarSlot();
-        if (slot == -1) {
-            return LevelUpResult.failure(); // Invalid slot
-        }
-
-        // Get current XP and level
-        final double currentXp = this.getItemXp(currentWeapon);
-        final int levelBefore = this.calculateLevelFromXp(currentXp);
-        
-        // Skip XP gain if already at max level
-        if (levelBefore >= this.config.getMaxLevel()) {
-            return new LevelUpResult(true, levelBefore, levelBefore); // Success but no change
-        }
-
-        // Calculate new total XP and level
-        final double newTotalXp = currentXp + xpToAdd;
-        final int levelAfter = this.calculateLevelFromXp(newTotalXp);
-
-        // Add XP to the weapon and handle level up
-        if (levelAfter > levelBefore) {
-            // Level up - add XP (effects are static, only change on upgrade selection)
-            ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
-            
-            // Every level gives 1 pending embue (Vampire Survivors style)
-            updatedWeapon = this.addPendingEmbues(updatedWeapon, levelAfter - levelBefore);
-            
-            final int pendingEmbues = this.getPendingEmbues(updatedWeapon);
-            System.out.println(String.format(
-                "[ItemExp] Weapon leveled up! %d -> %d | Effects: %s | Pending Embues: %d",
-                levelBefore,
-                levelAfter,
-                this.effectsService.getEffectsSummary(updatedWeapon),
-                pendingEmbues
-            ));
-            System.out.println(String.format(
-                "[ItemExp] +%d upgrade(s) available. Use /eoo to select.",
-                levelAfter - levelBefore
-            ));
-            
-            // Return the updated weapon - caller is responsible for the hotbar swap
-            // (to properly preserve SignatureEnergy and optionally restore durability)
-            return new LevelUpResult(true, levelBefore, levelAfter, updatedWeapon, slot);
-        } else {
-            // No level change - still persist XP immediately to avoid data loss on server restart
-            // Now that we can preserve SignatureEnergy during swaps, there's no reason to cache
-            ItemStack updatedWeapon = this.addXpToItem(currentWeapon, xpToAdd);
-            
-            // Return the updated weapon - caller will swap with SignatureEnergy preservation
-            return new LevelUpResult(true, levelBefore, levelAfter, updatedWeapon, slot);
-        }
-    }
-    
-    /**
-     * Result of adding XP to a weapon, including level change info.
-     * 
-     * When a level up occurs, the updatedWeapon field contains the new weapon
-     * with updated metadata. The caller is responsible for swapping this into
-     * the hotbar (using a method that preserves SignatureEnergy).
-     */
-    public static class LevelUpResult {
-        private final boolean success;
-        private final int levelBefore;
-        private final int levelAfter;
-        @Nullable
-        private final ItemStack updatedWeapon;
-        private final byte slot;
-        
-        public LevelUpResult(final boolean success, final int levelBefore, final int levelAfter) {
-            this(success, levelBefore, levelAfter, null, (byte) -1);
-        }
-        
-        public LevelUpResult(
-                final boolean success, 
-                final int levelBefore, 
-                final int levelAfter,
-                @Nullable final ItemStack updatedWeapon,
-                final byte slot
-        ) {
-            this.success = success;
-            this.levelBefore = levelBefore;
-            this.levelAfter = levelAfter;
-            this.updatedWeapon = updatedWeapon;
-            this.slot = slot;
-        }
-        
-        public static LevelUpResult failure() {
-            return new LevelUpResult(false, 0, 0);
-        }
-        
-        public boolean isSuccess() {
-            return this.success;
-        }
-        
-        public int getLevelBefore() {
-            return this.levelBefore;
-        }
-        
-        public int getLevelAfter() {
-            return this.levelAfter;
-        }
-        
-        public boolean didLevelUp() {
-            return this.success && this.levelAfter > this.levelBefore;
-        }
-        
-        /**
-         * Get the updated weapon with new metadata.
-         * The caller should swap this into the hotbar using a method that
-         * preserves SignatureEnergy.
-         */
-        @Nullable
-        public ItemStack getUpdatedWeapon() {
-            return this.updatedWeapon;
-        }
-        
-        /**
-         * Get the hotbar slot where the weapon should be placed.
-         */
-        public byte getSlot() {
-            return this.slot;
-        }
-        
-        /**
-         * Whether the caller needs to swap the weapon in the hotbar.
-         * True when XP was successfully added and there's an updated weapon.
-         */
-        public boolean needsSwap() {
-            return this.success && this.updatedWeapon != null;
-        }
     }
 
     /**

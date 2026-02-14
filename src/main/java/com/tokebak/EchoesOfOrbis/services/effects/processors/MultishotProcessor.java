@@ -619,13 +619,4 @@ public class MultishotProcessor implements EffectProcessor {
             }
         }
     }
-    
-    /**
-     * Reset cached state. Useful for testing.
-     */
-    public void resetCache() {
-        this.attackerCooldowns.clear();
-        this.cachedProjectileAsset = null;
-        this.lookupAttempted = false;
-    }
 }

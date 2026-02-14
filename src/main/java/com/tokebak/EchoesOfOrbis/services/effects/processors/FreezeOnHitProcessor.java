@@ -146,10 +146,4 @@ public class FreezeOnHitProcessor implements EffectProcessor {
             }
         }
     }
-    
-    public void resetCache() {
-        this.cachedFreezeEffect = null;
-        this.effectLookupAttempted = false;
-        this.targetCooldowns.clear();
-    }
 }

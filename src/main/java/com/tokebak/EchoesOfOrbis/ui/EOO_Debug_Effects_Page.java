@@ -314,7 +314,6 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
     private String getEffectDescription(WeaponEffectType type) {
         return switch (type) {
             case DAMAGE_PERCENT -> "Bonus damage as percentage of hit";
-            case DAMAGE_FLAT -> "Add flat bonus damage to attacks";
             case DURABILITY_SAVE -> "Chance to not lose durability when hitting";
             case LIFE_LEECH -> "Heal for a portion of damage dealt";
             case CRIT_CHANCE -> "Increased chance to deal critical hits";

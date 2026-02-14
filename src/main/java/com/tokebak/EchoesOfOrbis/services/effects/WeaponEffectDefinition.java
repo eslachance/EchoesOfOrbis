@@ -49,7 +49,12 @@ public class WeaponEffectDefinition {
      * Use {value} as placeholder for the calculated value.
      */
     private final String description;
-    
+
+    /**
+     * How the value is formatted for display. Must match how the processor uses the value.
+     */
+    private final ValueDisplayFormat valueDisplayFormat;
+
     private WeaponEffectDefinition(final Builder builder) {
         this.type = builder.type;
         this.baseValue = builder.baseValue;
@@ -59,6 +64,7 @@ public class WeaponEffectDefinition {
         this.procChance = builder.procChance;
         this.duration = builder.duration;
         this.description = builder.description;
+        this.valueDisplayFormat = builder.valueDisplayFormat;
     }
     
     /**
@@ -82,14 +88,12 @@ public class WeaponEffectDefinition {
     
     /**
      * Get a formatted description with the actual value.
+     * Uses valueDisplayFormat so display always matches how the processor uses the value.
      */
     @Nonnull
     public String getFormattedDescription(final int effectLevel) {
         final double value = this.calculateValue(effectLevel);
-        // Format as percentage if value is small (< 1), otherwise as integer
-        final String valueStr = value < 1.0 
-                ? String.format("%.0f%%", value * 100) 
-                : String.format("%.1f", value);
+        final String valueStr = this.valueDisplayFormat.format(value);
         return this.description.replace("{value}", valueStr);
     }
     
@@ -126,7 +130,15 @@ public class WeaponEffectDefinition {
     public String getDescription() {
         return this.description;
     }
-    
+
+    /**
+     * How the value is formatted for display (programmatic, matches processor semantics).
+     */
+    @Nonnull
+    public ValueDisplayFormat getValueDisplayFormat() {
+        return this.valueDisplayFormat;
+    }
+
     /**
      * Create a new builder for this definition.
      */
@@ -146,7 +158,8 @@ public class WeaponEffectDefinition {
         private double procChance = 1.0;
         private double duration = 0.0;
         private String description = "";
-        
+        private ValueDisplayFormat valueDisplayFormat = ValueDisplayFormat.PERCENT;
+
         private Builder(@Nonnull final WeaponEffectType type) {
             this.type = type;
         }
@@ -185,7 +198,16 @@ public class WeaponEffectDefinition {
             this.description = description;
             return this;
         }
-        
+
+        /**
+         * How the value is displayed (must match how the processor uses the value).
+         * Default is PERCENT for fraction 0–1.
+         */
+        public Builder valueDisplayFormat(@Nonnull final ValueDisplayFormat valueDisplayFormat) {
+            this.valueDisplayFormat = valueDisplayFormat;
+            return this;
+        }
+
         public WeaponEffectDefinition build() {
             return new WeaponEffectDefinition(this);
         }

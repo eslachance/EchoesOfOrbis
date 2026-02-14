@@ -75,21 +75,11 @@ public class WeaponEffectsService {
                         .maxValue(0.25)        // Cap at 25% bonus
                         .maxLevel(10)
                         .description("+{value} damage")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.DAMAGE_PERCENT, new DamagePercentProcessor());
-        
-        // DAMAGE_FLAT: Add flat damage
-        this.registerDefinition(
-                WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_FLAT)
-                        .baseValue(0.5)        // +0.5 damage at effect level 1
-                        .valuePerLevel(0.5)   // +0.5 per additional boost
-                        .maxValue(5.0)        // Cap at +5 damage
-                        .maxLevel(10)
-                        .description("+{value} flat damage")
-                        .build()
-        );
-        
+
         // LIFE_LEECH: 1% at level 1, +1% per boost
         this.registerDefinition(
                 WeaponEffectDefinition.builder(WeaponEffectType.LIFE_LEECH)
@@ -98,6 +88,7 @@ public class WeaponEffectsService {
                         .maxValue(0.15)       // Cap at 15%
                         .maxLevel(10)
                         .description("Heal {value} of damage dealt")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.LIFE_LEECH, new LifeLeechProcessor());
@@ -110,6 +101,7 @@ public class WeaponEffectsService {
                         .maxValue(0.50)       // Cap at 50%
                         .maxLevel(10)
                         .description("{value} chance to save durability")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.DURABILITY_SAVE, new DurabilitySaveProcessor());
@@ -122,6 +114,7 @@ public class WeaponEffectsService {
                         .maxValue(0.25)       // Cap at 25% chance
                         .maxLevel(10)
                         .description("{value} chance to poison on hit")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.POISON_ON_HIT, new PoisonOnHitProcessor());
@@ -134,6 +127,7 @@ public class WeaponEffectsService {
                         .maxValue(0.25)       // Cap at 25% chance
                         .maxLevel(10)
                         .description("{value} chance to burn on hit")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.FIRE_ON_HIT, new FireOnHitProcessor());
@@ -146,6 +140,7 @@ public class WeaponEffectsService {
                         .maxValue(0.25)       // Cap at 25% chance
                         .maxLevel(10)
                         .description("{value} chance to slow on hit")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.SLOW_ON_HIT, new SlowOnHitProcessor());
@@ -158,6 +153,7 @@ public class WeaponEffectsService {
                         .maxValue(0.12)       // Cap at 12% chance
                         .maxLevel(10)
                         .description("{value} chance to freeze on hit")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.FREEZE_ON_HIT, new FreezeOnHitProcessor());
@@ -170,6 +166,7 @@ public class WeaponEffectsService {
                         .maxValue(0.25)       // Cap at 25% chance
                         .maxLevel(10)
                         .description("{value} chance for extra projectile")
+                        .valueDisplayFormat(ValueDisplayFormat.PERCENT)
                         .build()
         );
         this.registerProcessor(WeaponEffectType.MULTISHOT, new MultishotProcessor());
@@ -426,24 +423,6 @@ public class WeaponEffectsService {
         return this.setEffect(weapon, effect);
     }
     
-    /**
-     * TEMPORARY: Update all standard effects for testing.
-     * Called on level up to add both DAMAGE_PERCENT and DURABILITY_SAVE.
-     * 
-     * @param weapon The weapon
-     * @param weaponLevel The weapon's current level
-     * @return New ItemStack with updated effects
-     */
-    @Nonnull
-    public ItemStack updateAllStandardEffects(
-            @Nonnull final ItemStack weapon,
-            final int weaponLevel
-    ) {
-        ItemStack updated = this.updateDamagePercentEffect(weapon, weaponLevel);
-        updated = this.updateDurabilitySaveEffect(updated, weaponLevel);
-        return updated;
-    }
-    
     // ==================== Effect Application ====================
     
     /**
@@ -485,24 +464,6 @@ public class WeaponEffectsService {
                 e.printStackTrace();
             }
         }
-    }
-    
-    /**
-     * Calculate the total damage bonus multiplier from all effects.
-     * Useful for displaying stats to the player.
-     */
-    public double calculateTotalDamageMultiplier(@Nullable final ItemStack weapon) {
-        double multiplier = 1.0;
-        
-        final WeaponEffectInstance percentEffect = this.getEffect(weapon, WeaponEffectType.DAMAGE_PERCENT);
-        if (percentEffect != null) {
-            final WeaponEffectDefinition def = this.definitions.get(WeaponEffectType.DAMAGE_PERCENT);
-            if (def != null) {
-                multiplier += def.calculateValue(percentEffect.getLevel());
-            }
-        }
-        
-        return multiplier;
     }
     
     // ==================== Embue Selection ====================

@@ -26,12 +26,6 @@ public enum WeaponEffectType {
     DAMAGE_PERCENT("damage_percent", WeaponCategory.all()),
     
     /**
-     * Adds flat bonus damage to attacks.
-     * Applied as a second damage instance.
-     */
-    DAMAGE_FLAT("damage_flat", WeaponCategory.all()),
-    
-    /**
      * Heals the attacker for a percentage of damage dealt.
      */
     LIFE_LEECH("life_leech", WeaponCategory.all()),
@@ -193,24 +187,10 @@ public enum WeaponEffectType {
     }
     
     /**
-     * Get the weapon categories this effect can apply to.
-     */
-    public Set<WeaponCategory> getApplicableCategories() {
-        return this.applicableCategories;
-    }
-    
-    /**
      * Check if this effect can apply to a specific weapon category.
      */
     public boolean appliesTo(final WeaponCategory category) {
         return this.applicableCategories.contains(category);
-    }
-    
-    /**
-     * Check if this effect applies to all weapon categories.
-     */
-    public boolean isUniversal() {
-        return this.applicableCategories.size() == WeaponCategory.values().length;
     }
     
     /**
