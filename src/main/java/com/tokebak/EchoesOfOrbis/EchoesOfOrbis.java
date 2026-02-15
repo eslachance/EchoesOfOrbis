@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.commands.EooCommand;
-import com.tokebak.EchoesOfOrbis.commands.TrashCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
 import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
@@ -60,6 +59,8 @@ public class EchoesOfOrbis extends JavaPlugin {
         ItemExpService.setInstance(this.itemExpService);
 
         this.baubleContainerService = new BaubleContainerService();
+        this.baubleContainerService.setStorageDir(this.getDataDirectory());
+        this.baubleContainerService.setLogger(this.getLogger());
         this.baubleContainerService.setOnBaubleContainerChange(this::onBaubleContainerChanged);
 
         // Register the custom F-key interaction for upgrade selection
@@ -80,7 +81,6 @@ public class EchoesOfOrbis extends JavaPlugin {
         );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService, this.baubleContainerService));
-        this.getCommandRegistry().registerCommand(new TrashCommand());
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
@@ -117,12 +117,14 @@ public class EchoesOfOrbis extends JavaPlugin {
             entity.getStatModifiersManager().setRecalculate(true);
         });
 
-        // Clean up tracking data when player disconnects
+        // Clean up tracking data when player disconnects (save bauble before cleanup)
         this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
             PlayerRef playerRef = event.getPlayerRef();
-            onlinePlayers.remove(playerRef.getUuid());
-            this.hudDisplaySystem.cleanupPlayer(playerRef.getUuid());
-            this.baubleContainerService.cleanupPlayer(playerRef.getUuid());
+            UUID uuid = playerRef.getUuid();
+            onlinePlayers.remove(uuid);
+            this.baubleContainerService.savePlayer(uuid);
+            this.hudDisplaySystem.cleanupPlayer(uuid);
+            this.baubleContainerService.cleanupPlayer(uuid);
         });
     }
 
