@@ -13,7 +13,10 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
+import com.tokebak.EchoesOfOrbis.services.RingHealthRegenEffectApplier;
 import com.tokebak.EchoesOfOrbis.ui.BlankHud;
 import com.tokebak.EchoesOfOrbis.ui.EOO_Status_Hud;
 
@@ -26,26 +29,39 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * System that manages the EOO Status HUD display based on active weapon.
  * Shows the HUD when the player switches to a weapon with effects, hides it otherwise.
- * Also provides methods to update the HUD when XP changes.
+ * Also applies the Healing Totem heal effect periodically to players with RING_HEALTH_REGEN (like standing in the totem).
  */
 public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
-    
+
+    /** Interval (seconds) between applying Healing_Totem_Heal when player has RING_HEALTH_REGEN. Matches totem feel. */
+    private static final float RING_HEAL_INTERVAL = 1f;
+
     private final ItemExpService itemExpService;
-    
+    private final BaubleContainerService baubleContainerService;
+
     /**
      * Tracks the last known active hotbar slot per player UUID.
      * Used to detect when the slot has changed.
      */
     private final Map<UUID, Byte> lastActiveSlot = new ConcurrentHashMap<>();
-    
+
     /**
      * Tracks the active EOO_Status_Hud instance per player UUID.
      * Used to update the HUD when XP changes without switching weapons.
      */
     private final Map<UUID, EOO_Status_Hud> activeHuds = new ConcurrentHashMap<>();
-    
-    public HudDisplaySystem(@Nonnull final ItemExpService itemExpService) {
+
+    /**
+     * Per-player accumulator (seconds) for applying ring heal effect. When >= RING_HEAL_INTERVAL, apply and reset.
+     */
+    private final Map<UUID, Float> ringHealAccumulator = new ConcurrentHashMap<>();
+
+    public HudDisplaySystem(
+            @Nonnull final ItemExpService itemExpService,
+            @Nonnull final BaubleContainerService baubleContainerService
+    ) {
         this.itemExpService = itemExpService;
+        this.baubleContainerService = baubleContainerService;
     }
     
     /**
@@ -95,10 +111,27 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
             return;
         }
         final UUID playerUuid = uuidComponent.getUuid();
-        
+
+        // Apply Healing Totem heal effect periodically when player has RING_HEALTH_REGEN (same effect as deployable totem)
+        final PlayerRef playerRef = store.getComponent(entityRef, PlayerRef.getComponentType());
+        if (playerRef != null) {
+            ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
+            double regenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.itemExpService.getEffectsService());
+            if (regenBonus > 0) {
+                float acc = this.ringHealAccumulator.getOrDefault(playerUuid, 0f) + dt;
+                if (acc >= RING_HEAL_INTERVAL) {
+                    RingHealthRegenEffectApplier.applyIfHasRing(entityRef, store, bauble, this.itemExpService.getEffectsService());
+                    acc = 0f;
+                }
+                this.ringHealAccumulator.put(playerUuid, acc);
+            } else {
+                this.ringHealAccumulator.remove(playerUuid);
+            }
+        }
+
         // Get current active slot
         final byte currentSlot = inventory.getActiveHotbarSlot();
-        
+
         // Get last known slot (or initialize if first time)
         final Byte lastSlotObj = this.lastActiveSlot.get(playerUuid);
         if (lastSlotObj == null) {
@@ -224,5 +257,6 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
     public void cleanupPlayer(@Nonnull final UUID playerUuid) {
         this.lastActiveSlot.remove(playerUuid);
         this.activeHuds.remove(playerUuid);
+        this.ringHealAccumulator.remove(playerUuid);
     }
 }

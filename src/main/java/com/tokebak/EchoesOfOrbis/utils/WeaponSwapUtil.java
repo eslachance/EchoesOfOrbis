@@ -171,4 +171,18 @@ public final class WeaponSwapUtil {
             statMap.maximizeStatValue(SIGNATURE_ENERGY_INDEX);
         }
     }
+
+    /**
+     * Add bonus signature energy to the entity (e.g. from RING_SIGNATURE_ENERGY). Engine caps at max.
+     */
+    public static void addSignatureEnergy(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store,
+            final float bonus
+    ) {
+        if (SIGNATURE_ENERGY_INDEX == Integer.MIN_VALUE || bonus <= 0) return;
+        float current = getSignatureEnergy(entityRef, store);
+        if (current < 0) return;
+        setSignatureEnergy(entityRef, store, current + bonus);
+    }
 }

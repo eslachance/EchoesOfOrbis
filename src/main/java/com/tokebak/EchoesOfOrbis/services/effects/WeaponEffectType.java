@@ -174,6 +174,26 @@ public enum WeaponEffectType {
      */
     RING_ATTACK_POWER("ring_attack_power", WeaponCategory.ring()),
 
+    /**
+     * Health regen (same idea as food effect e.g. Health Regen I). Applied as stat modifier from rings.
+     */
+    RING_HEALTH_REGEN("ring_health_regen", WeaponCategory.ring()),
+
+    /**
+     * Resist magic (damage reduction vs magic). Applied as stat modifier from rings; if no single stat, use separate resist effects.
+     */
+    RING_RESIST_MAGIC("ring_resist_magic", WeaponCategory.ring()),
+
+    /**
+     * Thorns: when the player takes damage, reflect damage back at the attacker.
+     */
+    RING_THORNS("ring_thorns", WeaponCategory.ring()),
+
+    /**
+     * Signature energy boost: +1 extra signature energy per level added on every attack.
+     */
+    RING_SIGNATURE_ENERGY("ring_signature_energy", WeaponCategory.ring()),
+
     // ==================== LEGACY / GENERIC ====================
 
     /**

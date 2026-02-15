@@ -19,11 +19,13 @@ import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
 import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
-import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
+import com.tokebak.EchoesOfOrbis.services.RingHealthRegenEffectApplier;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.systems.HudDisplaySystem;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.PlayerAttackPowerDamageSystem;
+import com.tokebak.EchoesOfOrbis.systems.ThornsDamageSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.util.Map;
@@ -74,7 +76,7 @@ public class EchoesOfOrbis extends JavaPlugin {
 
         // Register the HUD display system that shows/hides the status HUD based on active weapon
         // Must be registered BEFORE ItemExpDamageSystem so it can receive XP update notifications
-        this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService);
+        this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService, this.baubleContainerService);
         this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
 
         // Register the damage system that processes combat events
@@ -86,6 +88,11 @@ public class EchoesOfOrbis extends JavaPlugin {
         // Apply attack power from ring effects (RING_ATTACK_POWER) to damage dealt by players
         this.getEntityStoreRegistry().registerSystem(
                 new PlayerAttackPowerDamageSystem(this.baubleContainerService, this.weaponEffectsService)
+        );
+
+        // Thorns: reflect damage back at attacker when player is hit (RING_THORNS)
+        this.getEntityStoreRegistry().registerSystem(
+                new ThornsDamageSystem(this.baubleContainerService, this.weaponEffectsService)
         );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService, this.baubleContainerService));
@@ -102,8 +109,13 @@ public class EchoesOfOrbis extends JavaPlugin {
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
             double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
             double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
+            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
             PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
             PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
+            PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
+            PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+            RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
             player.getStatModifiersManager().setRecalculate(true);
             onlinePlayers.put(player.getPlayerRef().getUuid(), player.getPlayerRef());
             player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
@@ -120,8 +132,13 @@ public class EchoesOfOrbis extends JavaPlugin {
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
             double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
             double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
+            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
             PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
             PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
+            PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
+            PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+            RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
             entity.getStatModifiersManager().setRecalculate(true);
         });
 
@@ -147,8 +164,13 @@ public class EchoesOfOrbis extends JavaPlugin {
         ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
         double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
         double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+        double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
+        double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
         PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
         PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
+        PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
+        PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+        RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
         player.getStatModifiersManager().setRecalculate(true);
     }
 }

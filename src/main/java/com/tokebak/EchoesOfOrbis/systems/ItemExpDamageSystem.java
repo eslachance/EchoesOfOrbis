@@ -5,6 +5,8 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
@@ -16,6 +18,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
+import com.tokebak.EchoesOfOrbis.services.RingHealthRegenEffectApplier;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
@@ -61,6 +65,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
      * Key: playerUUID:slot, Value: timestamp (ms)
      */
     private final java.util.Map<String, Long> lastDamageTime = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final long HEALTH_REGEN_APPLY_COOLDOWN_MS = 5000; // 5 sec between re-applications when dealing damage
+    private final java.util.Map<String, Long> healthRegenLastApplyTime = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
@@ -165,6 +172,14 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                     commandBuffer
             );
         }
+
+        // ==================== RING: SIGNATURE ENERGY + HEALTH REGEN ====================
+        var bauble = this.baubleContainerService.getOrCreate(playerRef);
+        double sigBonus = PlayerStatModifierService.getSignatureEnergyBonusFromRings(bauble, this.itemExpService.getEffectsService());
+        if (sigBonus > 0) {
+            WeaponSwapUtil.addSignatureEnergy(attackerRef, store, (float) sigBonus);
+        }
+        this.applyRingHealthRegenToSelf(attackerRef, playerRef, store, commandBuffer, bauble);
 
         // ==================== AWARD XP (with combat idle flush) ====================
         // Calculate XP to award based on original damage dealt
@@ -434,6 +449,43 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             }
         }
     }
+
+    /**
+     * Apply the game's health regen EntityEffect (T1/T2/T3) to the player when they have RING_HEALTH_REGEN.
+     * Tier is chosen from ring level; re-application is rate-limited when dealing damage.
+     */
+    private void applyRingHealthRegenToSelf(
+            @Nonnull final Ref<EntityStore> attackerRef,
+            @Nonnull final PlayerRef playerRef,
+            @Nonnull final Store<EntityStore> store,
+            @Nonnull final CommandBuffer<EntityStore> commandBuffer,
+            @Nullable final ItemContainer bauble
+    ) {
+        if (bauble == null) return;
+        double regenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.itemExpService.getEffectsService());
+        if (regenBonus <= 0) return;
+
+        final String playerKey = playerRef.getUuid().toString();
+        final long now = System.currentTimeMillis();
+        final Long lastApply = this.healthRegenLastApplyTime.get(playerKey);
+        if (lastApply != null && (now - lastApply) < HEALTH_REGEN_APPLY_COOLDOWN_MS) {
+            return;
+        }
+
+        final int tierIndex = RingHealthRegenEffectApplier.tierFromBonus(regenBonus);
+        final EntityEffect regenEffect = RingHealthRegenEffectApplier.getEffectForTier(tierIndex);
+        if (regenEffect == null) return;
+
+        final EffectControllerComponent effectController = (EffectControllerComponent) commandBuffer
+                .getComponent(attackerRef, EffectControllerComponent.getComponentType());
+        if (effectController == null) return;
+
+        final boolean applied = effectController.addEffect(attackerRef, regenEffect, commandBuffer);
+        if (applied) {
+            this.healthRegenLastApplyTime.put(playerKey, now);
+        }
+    }
+
     
     /**
      * Restore durability to a weapon by adding the amount that would be lost.
