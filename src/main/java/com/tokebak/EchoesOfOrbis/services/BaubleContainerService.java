@@ -13,7 +13,11 @@ import com.hypixel.hytale.server.core.entity.entities.player.windows.Window;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.inventory.container.SimpleItemContainer;
+import com.hypixel.hytale.server.core.inventory.container.filter.FilterActionType;
+import com.hypixel.hytale.server.core.inventory.container.filter.SlotFilter;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.tokebak.EchoesOfOrbis.inventory.BaubleSlotFilter;
+import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
 
@@ -30,7 +34,8 @@ import java.util.function.Consumer;
 import org.bson.BsonDocument;
 
 /**
- * Manages a per-player "bauble" container (3 slots) that acts like a small backpack.
+ * Manages a per-player "bauble" container (3 slots): Ring - Amulet - Ring.
+ * Slot 0 and 2 accept only ring items; slot 1 (amulet) is open for now.
  * Opens as its own inventory window so items can be moved to/from main inventory.
  * Persists container contents to plugin data directory (bauble/{uuid}.json) on disconnect;
  * loads on first getOrCreate for that player.
@@ -38,6 +43,9 @@ import org.bson.BsonDocument;
 public final class BaubleContainerService {
 
     private static final short BAUBLE_SLOTS = 3;
+    /** Slot indices: 0 = Ring, 1 = Amulet (no filter yet), 2 = Ring. */
+    private static final short SLOT_RING_LEFT = 0;
+    private static final short SLOT_RING_RIGHT = 2;
     private static final String BAUBLE_SUBDIR = "bauble";
     private static final String FILE_EXT = ".json";
 
@@ -95,6 +103,7 @@ public final class BaubleContainerService {
             } else {
                 container = new SimpleItemContainer(BAUBLE_SLOTS);
             }
+            applySlotFilters(container);
             containerToPlayer.put(container, u);
             container.registerChangeEvent(e -> {
                 Consumer<UUID> callback = onBaubleContainerChange;
@@ -123,6 +132,18 @@ public final class BaubleContainerService {
                 logger.atWarning().withCause(e).log("Failed to save bauble data for %s", playerUuid);
             }
         }
+    }
+
+    /**
+     * Applies slot filters: Ring - Amulet - Ring. Slots 0 and 2 accept only ring items; slot 1 is open.
+     */
+    private void applySlotFilters(@Nonnull ItemContainer container) {
+        if (!(container instanceof SimpleItemContainer)) return;
+        SimpleItemContainer simple = (SimpleItemContainer) container;
+        SlotFilter ringOnly = new BaubleSlotFilter(PlayerStatModifierService::isRingItem);
+        simple.setSlotFilter(FilterActionType.ADD, SLOT_RING_LEFT, ringOnly);
+        // Slot 1 = Amulet: no filter for now (allow any)
+        simple.setSlotFilter(FilterActionType.ADD, SLOT_RING_RIGHT, ringOnly);
     }
 
     @Nullable
