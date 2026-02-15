@@ -29,8 +29,8 @@ import javax.annotation.Nullable;
  * 1. Applies weapon effects (bonus damage, etc.) for leveled weapons
  * 2. Awards XP to the attacking player's weapon
  *
- * This extends DamageEventSystem which is called whenever damage is dealt.
- * We check if the attacker is a player, then process their weapon's effects and XP.
+ * Plugin-registered systems do not run in the engine's Filter damage phase, so
+ * numeric bonus (e.g. DAMAGE_PERCENT) is applied as a second damage event.
  */
 public class ItemExpDamageSystem extends DamageEventSystem {
 
@@ -86,7 +86,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         if (damage.isCancelled() || damage.getAmount() <= 0) {
             return;
         }
-        
+
         // Skip bonus damage from weapon effects (prevents infinite recursion)
         if (DamagePercentProcessor.isBonusDamage(damage)) {
             return;
@@ -144,7 +144,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         
         // Get weapon level for effects
         final int weaponLevel = this.itemExpService.getItemLevel(weapon);
-        
+
         // ==================== APPLY WEAPON EFFECTS ====================
         // Apply effects BEFORE awarding XP (bonus damage, life leech, etc.)
         if (weaponLevel > 1) {
@@ -160,7 +160,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                     commandBuffer
             );
         }
-        
+
         // ==================== AWARD XP (with combat idle flush) ====================
         // Calculate XP to award based on original damage dealt
         final float damageDealt = damage.getAmount();

@@ -36,17 +36,14 @@ public final class EooPacketHandler implements SubPacketHandler {
         if (syncPacket.updates == null || syncPacket.updates.length == 0) {
             return;
         }
-        System.out.println("[EOO Packet] SyncInteractionChains received, updates=" + syncPacket.updates.length);
         forwardToQueue(syncPacket);
     }
 
     private void forwardToQueue(@Nonnull final SyncInteractionChains packet) {
         if (!(packetHandler instanceof GamePacketHandler)) {
-            System.out.println("[EOO Packet] Cannot forward: packetHandler is not GamePacketHandler");
             return;
         }
         final GamePacketHandler gameHandler = (GamePacketHandler) packetHandler;
         Collections.addAll(gameHandler.getInteractionPacketQueue(), packet.updates);
-        System.out.println("[EOO Packet] Forwarded " + packet.updates.length + " updates to interaction queue");
     }
 }

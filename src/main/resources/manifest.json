@@ -3,7 +3,7 @@
   "Name": "Echoes Of Orbis",
   "Version": "1.0-SNAPSHOT",
   "Main": "com.tokebak.EchoesOfOrbis.EchoesOfOrbis",
-  "ServerVersion": "2026.02.06-aa1b071c2",
+  "ServerVersion": "2026.02.11-891910c77",
   "IncludesAssetPack": true,
   "Dependencies": {
 
