@@ -12,28 +12,24 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Applies the same healing EntityEffect used by the Healing Totem deployable (Weapon_Deployable_Healing_Totem).
- * When you stand near the totem it applies "Healing_Totem_Heal" (Duration 1s, +2 Health); we apply that
- * effect periodically to players who have RING_HEALTH_REGEN in their bauble, so the ring acts like a personal totem.
+ * Applies our mod's tiered EOO_Healing_Effect (T1/T2/T3) to players who have RING_HEALTH_REGEN in their bauble.
+ * T1: +1 Health per tick, T2: +1.5, T3: +2 (1s duration, Overwrite). No screen tint; base totem unchanged.
  */
 public final class RingHealthRegenEffectApplier {
 
-    /** Effect ID used by the deployable Healing Totem (Entity/Effects/Deployables/Healing_Totem_Heal.json). */
-    private static final String HEALING_TOTEM_HEAL_EFFECT_ID = "Healing_Totem_Heal";
+    private static final String[] EOO_HEALING_EFFECT_IDS = {
+            "EOO_Healing_Effect_T1",
+            "EOO_Healing_Effect_T2",
+            "EOO_Healing_Effect_T3",
+    };
 
-    private static EntityEffect cachedHealingTotemEffect;
-    private static boolean healingTotemEffectLookupAttempted;
+    private static final EntityEffect[] cachedTierEffects = new EntityEffect[3];
 
     private RingHealthRegenEffectApplier() {}
 
     /**
-     * Apply the Healing Totem heal effect to the player if they have RING_HEALTH_REGEN in the bauble.
-     * Uses the same effect as the deployable: 1s duration, +2 Health (Overwrite). Call periodically (e.g. every 1s).
-     *
-     * @param ref    Player entity ref
-     * @param store  Entity store
-     * @param bauble Player's bauble container (can be null)
-     * @param effectsService Weapon effects service to sum ring regen
+     * Apply the appropriate tiered EOO_Healing_Effect (T1/T2/T3) to the player if they have RING_HEALTH_REGEN.
+     * Tier is derived from ring level (bonus 1.0 -> T1, 1.5 -> T2, 2.0 -> T3). Call periodically (e.g. every 1s).
      */
     public static void applyIfHasRing(
             @Nonnull final Ref<EntityStore> ref,
@@ -45,36 +41,18 @@ public final class RingHealthRegenEffectApplier {
         double bonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, effectsService);
         if (bonus <= 0) return;
 
-        EntityEffect effect = getHealingTotemHealEffect();
+        int tierIndex = tierFromBonus(bonus);
+        EntityEffect effect = getEffectForTier(tierIndex);
         if (effect == null) return;
 
         EffectControllerComponent effectController = store.getComponent(ref, EffectControllerComponent.getComponentType());
         if (effectController == null) return;
 
-        // Same as deployable: addEffect(targetRef, effectAsset, store) uses effect's built-in duration (1s)
         effectController.addEffect(ref, effect, store);
     }
 
     /**
-     * Get the Healing Totem heal EntityEffect (Healing_Totem_Heal). Tries ID and path variants.
-     */
-    @Nullable
-    public static EntityEffect getHealingTotemHealEffect() {
-        if (cachedHealingTotemEffect != null) return cachedHealingTotemEffect;
-        if (healingTotemEffectLookupAttempted) return null;
-        healingTotemEffectLookupAttempted = true;
-        for (String id : new String[] { HEALING_TOTEM_HEAL_EFFECT_ID, "Deployables/Healing_Totem_Heal" }) {
-            int index = EntityEffect.getAssetMap().getIndex(id);
-            if (index != Integer.MIN_VALUE) {
-                cachedHealingTotemEffect = EntityEffect.getAssetMap().getAsset(index);
-                return cachedHealingTotemEffect;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Map ring regen bonus to tier index 0 (T1), 1 (T2), 2 (T3). Used for display / upgrade tiers only.
+     * Map ring regen bonus to tier index 0 (T1), 1 (T2), 2 (T3).
      */
     public static int tierFromBonus(final double bonus) {
         if (bonus <= 0) return -1;
@@ -84,10 +62,22 @@ public final class RingHealthRegenEffectApplier {
     }
 
     /**
-     * Get the EntityEffect asset for tier (0=T1, 1=T2, 2=T3). Used by damage-system path; ring regen now uses Healing_Totem_Heal.
+     * Get the EntityEffect for tier (0=T1, 1=T2, 2=T3). Cached per tier.
      */
     @Nullable
     public static EntityEffect getEffectForTier(final int tierIndex) {
-        return getHealingTotemHealEffect();
+        if (tierIndex < 0 || tierIndex > 2) return null;
+        EntityEffect cached = cachedTierEffects[tierIndex];
+        if (cached != null) return cached;
+        String id = EOO_HEALING_EFFECT_IDS[tierIndex];
+        for (String variant : new String[] { id, "Deployables/" + id }) {
+            int index = EntityEffect.getAssetMap().getIndex(variant);
+            if (index != Integer.MIN_VALUE) {
+                cached = EntityEffect.getAssetMap().getAsset(index);
+                cachedTierEffects[tierIndex] = cached;
+                return cached;
+            }
+        }
+        return null;
     }
 }

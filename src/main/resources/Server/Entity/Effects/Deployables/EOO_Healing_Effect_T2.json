@@ -1,0 +1,8 @@
+{
+  "Duration": 1,
+  "OverlapBehavior": "Overwrite",
+  "StatModifiers": {
+    "Health": 1.5
+  },
+  "Debuff": false
+}
