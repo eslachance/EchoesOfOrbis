@@ -2,7 +2,7 @@
   "Duration": 1,
   "OverlapBehavior": "Overwrite",
   "StatModifiers": {
-    "Health": 1.5
+    "Health": 2
   },
   "Debuff": false
 }
