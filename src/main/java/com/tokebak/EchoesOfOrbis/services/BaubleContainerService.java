@@ -119,6 +119,7 @@ public final class BaubleContainerService {
             applySlotFilters(container);
             containerToPlayer.put(container, u);
             container.registerChangeEvent(e -> {
+                savePlayer(u);
                 Consumer<UUID> callback = onBaubleContainerChange;
                 if (callback != null) callback.accept(u);
             });
@@ -220,8 +221,8 @@ public final class BaubleContainerService {
     }
 
     /**
-     * Removes the bauble container for this player (e.g. on disconnect).
-     * Items in the container are not persisted in the current implementation.
+     * Removes the bauble container for this player from memory (e.g. on disconnect).
+     * Persistence is done on every container change and again on disconnect before this is called.
      */
     public void cleanupPlayer(@Nonnull UUID playerUuid) {
         ItemContainer removed = containersByPlayer.remove(playerUuid);

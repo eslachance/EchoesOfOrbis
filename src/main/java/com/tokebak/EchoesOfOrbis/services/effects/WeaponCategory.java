@@ -97,4 +97,11 @@ public enum WeaponCategory {
     public static Set<WeaponCategory> ring() {
         return EnumSet.of(RING);
     }
+
+    /**
+     * Get a set for weapons only (physical, projectile, magic). Excludes RING.
+     */
+    public static Set<WeaponCategory> weapons() {
+        return EnumSet.of(PHYSICAL, PROJECTILE, MAGIC);
+    }
 }

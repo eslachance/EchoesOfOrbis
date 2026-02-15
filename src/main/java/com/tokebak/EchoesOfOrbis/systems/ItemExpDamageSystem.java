@@ -317,6 +317,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 updated = this.itemExpService.addPendingEmbues(updated, levelAfter - currentLevel);
                 updated = updated.withDurability(updated.getMaxDurability());
                 bauble.setItemStackForSlot(slot, updated);
+                ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, updated, levelAfter, this.itemExpService);
             }
         }
     }

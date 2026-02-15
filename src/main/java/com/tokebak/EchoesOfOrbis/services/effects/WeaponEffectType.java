@@ -17,33 +17,33 @@ import java.util.Set;
  */
 public enum WeaponEffectType {
     
-    // ==================== UNIVERSAL EFFECTS (all weapon types) ====================
+    // ==================== WEAPON EFFECTS (physical, projectile, magic — not rings) ====================
     
     /**
      * Deals bonus damage as a percentage of the original hit.
      * Applied as a second damage instance.
      */
-    DAMAGE_PERCENT("damage_percent", WeaponCategory.all()),
+    DAMAGE_PERCENT("damage_percent", WeaponCategory.weapons()),
     
     /**
      * Heals the attacker for a percentage of damage dealt.
      */
-    LIFE_LEECH("life_leech", WeaponCategory.all()),
+    LIFE_LEECH("life_leech", WeaponCategory.weapons()),
     
     /**
      * Reduces durability loss on the weapon.
      */
-    DURABILITY_SAVE("durability_save", WeaponCategory.all()),
+    DURABILITY_SAVE("durability_save", WeaponCategory.weapons()),
     
     /**
      * Chance to deal critical damage (multiplied).
      */
-    CRIT_CHANCE("crit_chance", WeaponCategory.all()),
+    CRIT_CHANCE("crit_chance", WeaponCategory.weapons()),
     
     /**
      * Critical damage multiplier bonus.
      */
-    CRIT_DAMAGE("crit_damage", WeaponCategory.all()),
+    CRIT_DAMAGE("crit_damage", WeaponCategory.weapons()),
     
     // ==================== PHYSICAL (melee) ONLY ====================
     
@@ -179,7 +179,7 @@ public enum WeaponEffectType {
     /**
      * Modifies a player stat while the weapon is held.
      */
-    PLAYER_STAT("player_stat", WeaponCategory.all());
+    PLAYER_STAT("player_stat", WeaponCategory.weapons());
 
     private static final Map<String, WeaponEffectType> BY_ID = new HashMap<>();
     static {
