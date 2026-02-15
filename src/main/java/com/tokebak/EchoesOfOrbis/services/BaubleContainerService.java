@@ -14,9 +14,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Manages a per-player "bauble" container (3 slots) that acts like a small backpack.
@@ -28,16 +30,34 @@ public final class BaubleContainerService {
     private static final short BAUBLE_SLOTS = 3;
 
     private final Map<UUID, ItemContainer> containersByPlayer = new ConcurrentHashMap<>();
+    /** Reverse map so we can notify which player's bauble container changed. */
+    private final Map<ItemContainer, UUID> containerToPlayer = new ConcurrentHashMap<>();
+
+    private volatile Consumer<UUID> onBaubleContainerChange;
+
+    /**
+     * Set callback to run when any bauble container's contents change (e.g. to refresh stamina from ring).
+     */
+    public void setOnBaubleContainerChange(@Nullable Consumer<UUID> callback) {
+        this.onBaubleContainerChange = callback;
+    }
 
     /**
      * Returns the 3-slot bauble container for this player, creating it if needed.
+     * New containers get a change listener that notifies the owner's UUID when contents change.
      */
     @Nonnull
     public ItemContainer getOrCreate(@Nonnull PlayerRef playerRef) {
-        return containersByPlayer.computeIfAbsent(
-                playerRef.getUuid(),
-                uuid -> new SimpleItemContainer(BAUBLE_SLOTS)
-        );
+        UUID uuid = playerRef.getUuid();
+        return containersByPlayer.computeIfAbsent(uuid, u -> {
+            ItemContainer container = new SimpleItemContainer(BAUBLE_SLOTS);
+            containerToPlayer.put(container, u);
+            container.registerChangeEvent(e -> {
+                Consumer<UUID> callback = onBaubleContainerChange;
+                if (callback != null) callback.accept(u);
+            });
+            return container;
+        });
     }
 
     /**
@@ -82,6 +102,7 @@ public final class BaubleContainerService {
      * Items in the container are not persisted in the current implementation.
      */
     public void cleanupPlayer(@Nonnull UUID playerUuid) {
-        containersByPlayer.remove(playerUuid);
+        ItemContainer removed = containersByPlayer.remove(playerUuid);
+        if (removed != null) containerToPlayer.remove(removed);
     }
 }

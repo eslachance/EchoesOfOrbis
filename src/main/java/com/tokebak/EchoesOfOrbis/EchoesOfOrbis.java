@@ -1,13 +1,17 @@
 package com.tokebak.EchoesOfOrbis;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.entity.LivingEntity;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.commands.TrashCommand;
@@ -21,6 +25,10 @@ import com.tokebak.EchoesOfOrbis.systems.HudDisplaySystem;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class EchoesOfOrbis extends JavaPlugin {
 
     private final Config<EchoesOfOrbisConfig> config;
@@ -28,6 +36,8 @@ public class EchoesOfOrbis extends JavaPlugin {
     private ItemExpService itemExpService;
     private BaubleContainerService baubleContainerService;
     private HudDisplaySystem hudDisplaySystem;
+    /** Online player UUID -> PlayerRef for bauble-change callbacks (stamina refresh). */
+    private final Map<UUID, PlayerRef> onlinePlayers = new ConcurrentHashMap<>();
 
     public EchoesOfOrbis(@NonNullDecl JavaPluginInit init) {
         super(init);
@@ -50,6 +60,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         ItemExpService.setInstance(this.itemExpService);
 
         this.baubleContainerService = new BaubleContainerService();
+        this.baubleContainerService.setOnBaubleContainerChange(this::onBaubleContainerChanged);
 
         // Register the custom F-key interaction for upgrade selection
         this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
@@ -75,18 +86,59 @@ public class EchoesOfOrbis extends JavaPlugin {
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
 
-        // Send welcome message when player joins and apply base stat modifiers (e.g. stamina 25)
+        // Send welcome message when player joins and apply ring-based stamina (25 if ring in inventory, else 10)
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             Player player = event.getPlayer();
-            PlayerStatModifierService.applyBaseStatModifiers(event.getPlayerRef(), event.getPlayerRef().getStore());
+            Ref<EntityStore> ref = event.getPlayerRef();
+            Store<EntityStore> store = ref.getStore();
+            boolean hasRing = PlayerStatModifierService.hasRingInInventory(
+                    player.getInventory(),
+                    this.baubleContainerService.getOrCreate(player.getPlayerRef())
+            );
+            PlayerStatModifierService.updateStaminaFromRing(ref, store, hasRing);
+            player.getStatModifiersManager().setRecalculate(true);
+            onlinePlayers.put(player.getPlayerRef().getUuid(), player.getPlayerRef());
             player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
+        });
+
+        // When any player inventory changes, refresh stamina from ring (main inv + bauble slots)
+        this.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, event -> {
+            LivingEntity entity = event.getEntity();
+            if (!(entity instanceof Player)) return;
+            Player player = (Player) entity;
+            Ref<EntityStore> ref = (Ref<EntityStore>) entity.getReference();
+            if (ref == null || !ref.isValid()) return;
+            Store<EntityStore> store = ref.getStore();
+            boolean hasRing = PlayerStatModifierService.hasRingInInventory(
+                    player.getInventory(),
+                    this.baubleContainerService.getOrCreate(player.getPlayerRef())
+            );
+            PlayerStatModifierService.updateStaminaFromRing(ref, store, hasRing);
+            entity.getStatModifiersManager().setRecalculate(true);
         });
 
         // Clean up tracking data when player disconnects
         this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
             PlayerRef playerRef = event.getPlayerRef();
+            onlinePlayers.remove(playerRef.getUuid());
             this.hudDisplaySystem.cleanupPlayer(playerRef.getUuid());
             this.baubleContainerService.cleanupPlayer(playerRef.getUuid());
         });
+    }
+
+    private void onBaubleContainerChanged(UUID playerUuid) {
+        PlayerRef playerRef = onlinePlayers.get(playerUuid);
+        if (playerRef == null) return;
+        Ref<EntityStore> ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) return;
+        Store<EntityStore> store = ref.getStore();
+        Player player = store.getComponent(ref, Player.getComponentType());
+        if (player == null) return;
+        boolean hasRing = PlayerStatModifierService.hasRingInInventory(
+                player.getInventory(),
+                this.baubleContainerService.getOrCreate(playerRef)
+        );
+        PlayerStatModifierService.updateStaminaFromRing(ref, store, hasRing);
+        player.getStatModifiersManager().setRecalculate(true);
     }
 }
