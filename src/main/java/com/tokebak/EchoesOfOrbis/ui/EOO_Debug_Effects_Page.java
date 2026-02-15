@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
@@ -39,12 +40,14 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
 
     @Nonnull
     private final ItemExpService itemExpService;
-    
+    @Nonnull
+    private final PlayerRef playerRef;
+    @Nonnull
+    private final BaubleContainerService baubleContainerService;
     @Nonnull
     private final String containerName;
-    
     private final int slot;
-    
+
     // Store the list of applicable effects for event handling
     private List<WeaponEffectType> applicableEffects;
 
@@ -53,10 +56,13 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             @Nonnull CustomPageLifetime lifetime,
             @Nonnull ItemExpService itemExpService,
             @Nonnull String containerName,
-            int slot
+            int slot,
+            @Nonnull BaubleContainerService baubleContainerService
     ) {
         super(playerRef, lifetime, Data.CODEC);
         this.itemExpService = itemExpService;
+        this.playerRef = playerRef;
+        this.baubleContainerService = baubleContainerService;
         this.containerName = containerName;
         this.slot = slot;
     }
@@ -241,7 +247,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
     }
     
     /**
-     * Set the weapon in the inventory.
+     * Set the weapon in the inventory (or bauble container when containerName is "Bauble").
      */
     private void setWeaponInInventory(Inventory inventory, ItemStack weapon) {
         final ItemContainer container = this.getContainer(inventory);
@@ -249,12 +255,15 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             container.setItemStackForSlot((short) this.slot, weapon);
         }
     }
-    
+
     /**
-     * Get the container from inventory by name.
+     * Get the container from inventory by name (or bauble container for "Bauble").
      */
     @Nullable
     private ItemContainer getContainer(Inventory inventory) {
+        if ("Bauble".equals(this.containerName)) {
+            return this.baubleContainerService.getOrCreate(this.playerRef);
+        }
         return switch (this.containerName) {
             case "Hotbar" -> inventory.getHotbar();
             case "Storage" -> inventory.getStorage();

@@ -1,6 +1,7 @@
 package com.tokebak.EchoesOfOrbis.services;
 
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.tokebak.EchoesOfOrbis.inventory.ItemTagUtil;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -69,15 +70,22 @@ public final class WeaponMaterialService {
         // Utility class
     }
 
+    /** Number of upgrade slots for bauble rings (e.g. EOO_Ring_Crude). */
+    private static final int RING_SLOTS = 3;
+
     /**
-     * Get the number of boost slots for a weapon based on its material tier.
+     * Get the number of boost slots for a weapon or ring.
+     * Rings (tag Bauble_Ring) get RING_SLOTS; weapons use material tier.
      *
-     * @param weapon The weapon ItemStack
-     * @return Number of boost slots (2-8), or 2 if unknown
+     * @param weapon The weapon or ring ItemStack
+     * @return Number of boost slots (2-8 for weapons, RING_SLOTS for rings)
      */
     public static int getBoostSlotsForWeapon(@Nullable final ItemStack weapon) {
         if (weapon == null || weapon.isEmpty()) {
             return DEFAULT_SLOTS;
+        }
+        if (ItemTagUtil.hasTag(weapon, "Bauble_Ring")) {
+            return RING_SLOTS;
         }
         return getBoostSlotsForItemId(weapon.getItemId());
     }

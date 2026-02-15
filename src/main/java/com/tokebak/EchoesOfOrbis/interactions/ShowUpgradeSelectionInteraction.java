@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.ui.EOO_Embue_Selection_Page;
 
@@ -145,12 +146,19 @@ public final class ShowUpgradeSelectionInteraction extends SimpleInstantInteract
             return;
         }
 
+        final BaubleContainerService baubleContainerService = BaubleContainerService.getInstance();
+        if (baubleContainerService == null) {
+            System.out.println("[EOO Interaction] FAIL: baubleContainerService=null");
+            context.getState().state = InteractionState.Failed;
+            return;
+        }
         final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
                 playerRefComponent,
                 CustomPageLifetime.CanDismiss,
                 itemExpService,
                 "Hotbar",
-                activeSlot
+                activeSlot,
+                baubleContainerService
         );
         player.getPageManager().openCustomPage(playerRef, store, selectionPage);
 

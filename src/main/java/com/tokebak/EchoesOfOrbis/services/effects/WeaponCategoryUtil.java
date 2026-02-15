@@ -3,15 +3,17 @@ package com.tokebak.EchoesOfOrbis.services.effects;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
+import com.tokebak.EchoesOfOrbis.inventory.ItemTagUtil;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Utility class for determining weapon categories.
- * 
+ * Utility class for determining weapon/ring categories.
+ *
  * Categories are determined by:
- * 1. The DamageCause from the damage event (PHYSICAL vs PROJECTILE)
- * 2. The item ID for magic weapon detection
+ * 1. Bauble_Ring tag → RING
+ * 2. The DamageCause from the damage event (PHYSICAL vs PROJECTILE)
+ * 3. The item ID for magic weapon detection
  */
 public final class WeaponCategoryUtil {
     
@@ -46,7 +48,11 @@ public final class WeaponCategoryUtil {
             @Nullable final Damage damage,
             @Nullable final ItemStack weapon
     ) {
-        // First check if weapon is a magic weapon by ID
+        // First check if item is a bauble ring (tag Bauble_Ring)
+        if (weapon != null && !weapon.isEmpty() && ItemTagUtil.hasTag(weapon, "Bauble_Ring")) {
+            return WeaponCategory.RING;
+        }
+        // Then check if weapon is a magic weapon by ID
         if (weapon != null && !weapon.isEmpty()) {
             final String itemId = weapon.getItemId();
             if (itemId != null && isMagicWeapon(itemId)) {
@@ -123,6 +129,8 @@ public final class WeaponCategoryUtil {
                 return "Projectile";
             case MAGIC:
                 return "Magic";
+            case RING:
+                return "Ring";
             default:
                 return "Unknown";
         }

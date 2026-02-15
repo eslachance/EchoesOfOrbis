@@ -2,120 +2,100 @@ package com.tokebak.EchoesOfOrbis.services;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsModule;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.EntityStatType;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.tokebak.EchoesOfOrbis.inventory.ItemTagUtil;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
- * Applies mod-specific stat modifiers for players based on equipped items (rings).
- * - EOO_Ring_Stamina: max stamina 25 when in inventory (else default 10).
- * - EOO_Ring_Health: max health +50 when in inventory.
+ * Applies stat modifiers from bauble ring effects (RING_STAMINA, RING_HEALTH).
+ * Attack power from rings is applied in PlayerAttackPowerDamageSystem.
  */
 public final class PlayerStatModifierService {
 
-    private static final String STAMINA_MODIFIER_KEY = "EooStaminaBase";
-    private static final String HEALTH_MODIFIER_KEY = "EooHealthBase";
-
-    /** Item ID for the stamina ring. Game may use path "Items/EOO_Ring_Stamina". */
-    public static final String RING_STAMINA_ITEM_ID = "EOO_Ring_Stamina";
-    public static final String RING_STAMINA_ITEM_ID_PATH = "Items/EOO_Ring_Stamina";
-
-    /** Item ID for the health ring. Game may use path "Items/EOO_Ring_Health". */
-    public static final String RING_HEALTH_ITEM_ID = "EOO_Ring_Health";
-    public static final String RING_HEALTH_ITEM_ID_PATH = "Items/EOO_Ring_Health";
-
-    /** Max stamina when stamina ring is present (vanilla base is 10). */
-    private static final float TARGET_STAMINA_MAX = 25f;
-    /** Additive max health bonus when health ring is present. */
-    private static final float HEALTH_RING_BONUS = 50f;
-
-    /** All ring item IDs (and path variants) allowed in bauble ring slots. */
-    private static final String[] RING_ITEM_IDS = new String[]{
-            RING_STAMINA_ITEM_ID, RING_STAMINA_ITEM_ID_PATH,
-            RING_HEALTH_ITEM_ID, RING_HEALTH_ITEM_ID_PATH
-    };
+    private static final String STAMINA_MODIFIER_KEY = "EooStaminaRings";
+    private static final String HEALTH_MODIFIER_KEY = "EooHealthRings";
 
     private PlayerStatModifierService() {}
 
     /**
-     * Returns true if the given item stack is one of our ring items (allowed in bauble ring slots).
+     * Sum effect value for a given type across all Bauble_Ring stacks in the container.
      */
-    public static boolean isRingItem(@Nullable ItemStack stack) {
-        if (stack == null || ItemStack.isEmpty(stack)) return false;
-        String id = stack.getItemId();
-        for (String ringId : RING_ITEM_IDS) {
-            if (ringId.equals(id)) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Returns true if the given inventory or bauble container contains at least one EOO_Ring_Stamina.
-     */
-    public static boolean hasStaminaRingInInventory(
-            @Nonnull Inventory inventory,
-            @Nullable ItemContainer baubleContainer
-    ) {
-        return hasItemInInventory(inventory, baubleContainer, RING_STAMINA_ITEM_ID, RING_STAMINA_ITEM_ID_PATH);
-    }
-
-    /**
-     * Returns true if the given inventory or bauble container contains at least one EOO_Ring_Health.
-     */
-    public static boolean hasHealthRingInInventory(
-            @Nonnull Inventory inventory,
-            @Nullable ItemContainer baubleContainer
-    ) {
-        return hasItemInInventory(inventory, baubleContainer, RING_HEALTH_ITEM_ID, RING_HEALTH_ITEM_ID_PATH);
-    }
-
-    private static boolean hasItemInInventory(
-            @Nonnull Inventory inventory,
+    private static double sumEffectValue(
             @Nullable ItemContainer baubleContainer,
-            @Nonnull String... itemIds
+            @Nonnull WeaponEffectsService effectsService,
+            @Nonnull WeaponEffectType effectType
     ) {
-        if (containsAny(inventory.getHotbar(), itemIds)) return true;
-        if (containsAny(inventory.getStorage(), itemIds)) return true;
-        if (containsAny(inventory.getArmor(), itemIds)) return true;
-        if (containsAny(inventory.getUtility(), itemIds)) return true;
-        if (containsAny(inventory.getTools(), itemIds)) return true;
-        if (containsAny(inventory.getBackpack(), itemIds)) return true;
-        if (baubleContainer != null && containsAny(baubleContainer, itemIds)) return true;
-        return false;
-    }
-
-    private static boolean containsAny(@Nonnull ItemContainer container, @Nonnull String... itemIds) {
-        short capacity = container.getCapacity();
+        if (baubleContainer == null) return 0.0;
+        WeaponEffectDefinition def = effectsService.getDefinition(effectType);
+        if (def == null) return 0.0;
+        double total = 0.0;
+        short capacity = baubleContainer.getCapacity();
         for (short i = 0; i < capacity; i++) {
-            ItemStack stack = container.getItemStack(i);
-            if (stack != null && !ItemStack.isEmpty(stack)) {
-                String id = stack.getItemId();
-                for (String itemId : itemIds) {
-                    if (itemId.equals(id)) return true;
+            ItemStack stack = baubleContainer.getItemStack(i);
+            if (stack == null || ItemStack.isEmpty(stack) || !ItemTagUtil.hasTag(stack, "Bauble_Ring")) continue;
+            List<WeaponEffectInstance> effects = effectsService.getEffects(stack);
+            for (WeaponEffectInstance inst : effects) {
+                if (inst != null && inst.getType() == effectType) {
+                    total += def.calculateValue(inst.getLevel());
                 }
             }
         }
-        return false;
+        return total;
     }
 
     /**
-     * Applies or removes the stamina modifier so max stamina is 25 when hasRing is true, else default 10.
-     * Caller should then set StatModifiersManager.setRecalculate(true) on the entity.
+     * Total stamina bonus from all ring effects in the bauble container.
      */
-    public static void updateStaminaFromRing(
+    public static double getStaminaBonusFromRings(
+            @Nullable ItemContainer baubleContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValue(baubleContainer, effectsService, WeaponEffectType.RING_STAMINA);
+    }
+
+    /**
+     * Total health bonus from all ring effects in the bauble container.
+     */
+    public static double getHealthBonusFromRings(
+            @Nullable ItemContainer baubleContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValue(baubleContainer, effectsService, WeaponEffectType.RING_HEALTH);
+    }
+
+    /**
+     * Damage multiplier from ring attack power effects (1.0 + sum of RING_ATTACK_POWER values).
+     */
+    public static float getAttackPowerMultiplierFromRings(
+            @Nullable ItemContainer baubleContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        double sum = sumEffectValue(baubleContainer, effectsService, WeaponEffectType.RING_ATTACK_POWER);
+        return (float) (1.0 + sum);
+    }
+
+    /**
+     * Applies or removes the stamina modifier from ring effects.
+     * Caller should then set StatModifiersManager.setRecalculate(true).
+     */
+    public static void updateStaminaFromRings(
             @Nonnull Ref<EntityStore> ref,
             @Nonnull Store<EntityStore> store,
-            boolean hasRing
+            double bonus
     ) {
         EntityStatMap statMap = store.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
         if (statMap == null) return;
@@ -123,14 +103,11 @@ public final class PlayerStatModifierService {
         int staminaIndex = DefaultEntityStatTypes.getStamina();
         if (staminaIndex == Integer.MIN_VALUE) return;
 
-        if (hasRing) {
-            EntityStatType staminaAsset = EntityStatType.getAssetMap().getAsset(staminaIndex);
-            if (staminaAsset == null) return;
-            float additiveAmount = TARGET_STAMINA_MAX - staminaAsset.getMax();
+        if (bonus > 0) {
             StaticModifier staminaModifier = new StaticModifier(
                     Modifier.ModifierTarget.MAX,
                     StaticModifier.CalculationType.ADDITIVE,
-                    additiveAmount
+                    (float) bonus
             );
             statMap.putModifier(staminaIndex, STAMINA_MODIFIER_KEY, staminaModifier);
         } else {
@@ -139,13 +116,13 @@ public final class PlayerStatModifierService {
     }
 
     /**
-     * Applies or removes the health modifier: +50 max health when hasRing is true.
-     * Caller should then set StatModifiersManager.setRecalculate(true) on the entity.
+     * Applies or removes the health modifier from ring effects.
+     * Caller should then set StatModifiersManager.setRecalculate(true).
      */
-    public static void updateHealthFromRing(
+    public static void updateHealthFromRings(
             @Nonnull Ref<EntityStore> ref,
             @Nonnull Store<EntityStore> store,
-            boolean hasRing
+            double bonus
     ) {
         EntityStatMap statMap = store.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
         if (statMap == null) return;
@@ -153,11 +130,11 @@ public final class PlayerStatModifierService {
         int healthIndex = DefaultEntityStatTypes.getHealth();
         if (healthIndex == Integer.MIN_VALUE) return;
 
-        if (hasRing) {
+        if (bonus > 0) {
             StaticModifier healthModifier = new StaticModifier(
                     Modifier.ModifierTarget.MAX,
                     StaticModifier.CalculationType.ADDITIVE,
-                    HEALTH_RING_BONUS
+                    (float) bonus
             );
             statMap.putModifier(healthIndex, HEALTH_MODIFIER_KEY, healthModifier);
         } else {

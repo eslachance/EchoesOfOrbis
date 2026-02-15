@@ -17,7 +17,7 @@ import com.hypixel.hytale.server.core.inventory.container.filter.FilterActionTyp
 import com.hypixel.hytale.server.core.inventory.container.filter.SlotFilter;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.tokebak.EchoesOfOrbis.inventory.BaubleSlotFilter;
-import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
+import com.tokebak.EchoesOfOrbis.inventory.ItemTagUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
 
@@ -35,7 +35,7 @@ import org.bson.BsonDocument;
 
 /**
  * Manages a per-player "bauble" container (3 slots): Ring - Amulet - Ring.
- * Slot 0 and 2 accept only ring items; slot 1 (amulet) is open for now.
+ * Slot 0 and 2 accept only items with tag Bauble_Ring; slot 1 (amulet) accepts tag Bauble_Neck when we add amulets (open for now).
  * Opens as its own inventory window so items can be moved to/from main inventory.
  * Persists container contents to plugin data directory (bauble/{uuid}.json) on disconnect;
  * loads on first getOrCreate for that player.
@@ -45,9 +45,22 @@ public final class BaubleContainerService {
     private static final short BAUBLE_SLOTS = 3;
     /** Slot indices: 0 = Ring, 1 = Amulet (no filter yet), 2 = Ring. */
     private static final short SLOT_RING_LEFT = 0;
+    private static final short SLOT_AMULET = 1;
     private static final short SLOT_RING_RIGHT = 2;
     private static final String BAUBLE_SUBDIR = "bauble";
     private static final String FILE_EXT = ".json";
+
+    private static volatile BaubleContainerService instance;
+
+    /** Set the global instance (used by ShowUpgradeSelectionInteraction which cannot receive constructor injection). */
+    public static void setInstance(@Nonnull final BaubleContainerService service) {
+        instance = service;
+    }
+
+    @Nullable
+    public static BaubleContainerService getInstance() {
+        return instance;
+    }
 
     private final Map<UUID, ItemContainer> containersByPlayer = new ConcurrentHashMap<>();
     /** Reverse map so we can notify which player's bauble container changed. */
@@ -134,15 +147,21 @@ public final class BaubleContainerService {
         }
     }
 
+    /** Tag for ring slots (slot 0 and 2). Item JSON: "Tags": {"Type": ["Bauble_Ring"]}. */
+    private static final String TAG_BAUBLE_RING = "Bauble_Ring";
+    /** Tag for amulet slot (slot 1). Item JSON: "Tags": {"Type": ["Bauble_Neck"]}. */
+    private static final String TAG_BAUBLE_NECK = "Bauble_Neck";
+
     /**
-     * Applies slot filters: Ring - Amulet - Ring. Slots 0 and 2 accept only ring items; slot 1 is open.
+     * Applies slot filters: Ring - Amulet - Ring. Slots 0 and 2 accept only Bauble_Ring; slot 1 accepts only Bauble_Neck.
      */
     private void applySlotFilters(@Nonnull ItemContainer container) {
         if (!(container instanceof SimpleItemContainer)) return;
         SimpleItemContainer simple = (SimpleItemContainer) container;
-        SlotFilter ringOnly = new BaubleSlotFilter(PlayerStatModifierService::isRingItem);
+        SlotFilter ringOnly = new BaubleSlotFilter(stack -> ItemTagUtil.hasTag(stack, TAG_BAUBLE_RING));
+        SlotFilter neckOnly = new BaubleSlotFilter(stack -> ItemTagUtil.hasTag(stack, TAG_BAUBLE_NECK));
         simple.setSlotFilter(FilterActionType.ADD, SLOT_RING_LEFT, ringOnly);
-        // Slot 1 = Amulet: no filter for now (allow any)
+        simple.setSlotFilter(FilterActionType.ADD, SLOT_AMULET, neckOnly);
         simple.setSlotFilter(FilterActionType.ADD, SLOT_RING_RIGHT, ringOnly);
     }
 

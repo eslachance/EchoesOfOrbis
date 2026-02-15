@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.UpgradeOption;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
@@ -41,12 +42,14 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
 
     @Nonnull
     private final ItemExpService itemExpService;
-    
+    @Nonnull
+    private final PlayerRef playerRef;
+    @Nonnull
+    private final BaubleContainerService baubleContainerService;
     @Nonnull
     private final String containerName;
-    
     private final int slot;
-    
+
     // Store the available options for this selection
     private List<UpgradeOption> availableOptions;
 
@@ -55,10 +58,13 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             @Nonnull CustomPageLifetime lifetime,
             @Nonnull ItemExpService itemExpService,
             @Nonnull String containerName,
-            int slot
+            int slot,
+            @Nonnull BaubleContainerService baubleContainerService
     ) {
         super(playerRef, lifetime, Data.CODEC);
         this.itemExpService = itemExpService;
+        this.playerRef = playerRef;
+        this.baubleContainerService = baubleContainerService;
         this.containerName = containerName;
         this.slot = slot;
     }
@@ -216,22 +222,30 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
      * @param maximizeSignature true to maximize SignatureEnergy (level-up bonus), false to preserve
      */
     private void setWeaponInInventory(Ref<EntityStore> ref, Store<EntityStore> store, Inventory inventory, ItemStack weapon, boolean maximizeSignature) {
-        WeaponSwapUtil.swapWeaponInContainer(
-                ref,
-                store,
-                inventory,
-                this.containerName,
-                this.slot,
-                weapon,
-                maximizeSignature
-        );
+        if ("Bauble".equals(this.containerName)) {
+            final ItemContainer bauble = this.baubleContainerService.getOrCreate(this.playerRef);
+            bauble.setItemStackForSlot((short) this.slot, weapon);
+        } else {
+            WeaponSwapUtil.swapWeaponInContainer(
+                    ref,
+                    store,
+                    inventory,
+                    this.containerName,
+                    this.slot,
+                    weapon,
+                    maximizeSignature
+            );
+        }
     }
-    
+
     /**
-     * Get the container from inventory by name.
+     * Get the container from inventory by name (or bauble container for "Bauble").
      */
     @Nullable
     private ItemContainer getContainer(Inventory inventory) {
+        if ("Bauble".equals(this.containerName)) {
+            return this.baubleContainerService.getOrCreate(this.playerRef);
+        }
         return switch (this.containerName) {
             case "Hotbar" -> inventory.getHotbar();
             case "Storage" -> inventory.getStorage();

@@ -74,11 +74,20 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
         final Inventory inventory = playerComponent.getInventory();
 
-        // Collect all weapons from hotbar, storage (main inventory), and backpack
+        // Collect all XP-gaining items: hotbar, storage, backpack, and bauble (rings/amulets)
         this.weaponsList = new ArrayList<>();
         collectWeapons(inventory.getHotbar(), "Hotbar", this.weaponsList);
         collectWeapons(inventory.getStorage(), "Storage", this.weaponsList);
         collectWeapons(inventory.getBackpack(), "Backpack", this.weaponsList);
+        // Use the ref passed to build() so we get this player's bauble container (not a stale playerRef)
+        final PlayerRef playerRefForBuild = (PlayerRef) store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRefForBuild != null) {
+            final int beforeBauble = this.weaponsList.size();
+            final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRefForBuild);
+            collectWeapons(bauble, "Bauble", this.weaponsList);
+            final int fromBauble = this.weaponsList.size() - beforeBauble;
+            System.out.println("[EOO UI] Bauble: " + fromBauble + " XP-gaining item(s) (container slots=" + bauble.getCapacity() + ")");
+        }
 
         // Sort: used items first (by level desc, then XP desc), unused items at bottom
         this.weaponsList.sort(Comparator
@@ -165,7 +174,18 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final short capacity = container.getCapacity();
         for (short slot = 0; slot < capacity; slot++) {
             final ItemStack item = container.getItemStack(slot);
-            if (item != null && !item.isEmpty() && this.itemExpService.canGainXp(item)) {
+            if (item == null || item.isEmpty()) {
+                if ("Bauble".equals(containerName)) {
+                    System.out.println("[EOO UI] Bauble slot " + slot + ": empty");
+                }
+                continue;
+            }
+            final String itemId = item.getItemId();
+            final boolean canGain = this.itemExpService.canGainXp(item);
+            if ("Bauble".equals(containerName)) {
+                System.out.println("[EOO UI] Bauble slot " + slot + ": " + itemId + " canGainXp=" + canGain);
+            }
+            if (canGain) {
                 weapons.add(new WeaponInfo(item, containerName, slot));
             }
         }
@@ -317,7 +337,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                                     CustomPageLifetime.CanDismiss,
                                     this.itemExpService,
                                     weapon.containerName,
-                                    weapon.slot
+                                    weapon.slot,
+                                    this.baubleContainerService
                             );
                             playerComponent.getPageManager().openCustomPage(ref, store, selectionPage);
                         }
@@ -344,7 +365,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                                 CustomPageLifetime.CanDismiss,
                                 this.itemExpService,
                                 weapon.containerName,
-                                weapon.slot
+                                weapon.slot,
+                                this.baubleContainerService
                         );
                         playerComponent.getPageManager().openCustomPage(ref, store, debugPage);
                     }

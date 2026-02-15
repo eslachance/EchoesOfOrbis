@@ -10,9 +10,11 @@ import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
@@ -37,7 +39,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     private final ItemExpService itemExpService;
     private final EchoesOfOrbisConfig config;
     private final HudDisplaySystem hudDisplaySystem;
-    
+    private final BaubleContainerService baubleContainerService;
+
     /**
      * Time of inactivity (no damage dealt) before flushing pending XP (in milliseconds).
      * This prevents weapon swaps from interrupting abilities like ultimates.
@@ -62,12 +65,14 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
             @Nonnull final EchoesOfOrbisConfig config,
-            @Nonnull final HudDisplaySystem hudDisplaySystem
+            @Nonnull final HudDisplaySystem hudDisplaySystem,
+            @Nonnull final BaubleContainerService baubleContainerService
     ) {
         super();
         this.itemExpService = itemExpService;
         this.config = config;
         this.hudDisplaySystem = hudDisplaySystem;
+        this.baubleContainerService = baubleContainerService;
     }
 
     /**
@@ -180,8 +185,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Update last damage time
         this.lastDamageTime.put(playerSlotKey, now);
         
-        // If we were idle (combat ended), flush any pending XP first
+        // If we were idle (combat ended), flush any pending XP first (weapon + rings)
         if (wasIdle) {
+            this.flushAllRingsPendingXp(playerRef);
             final double pendingXp = this.itemExpService.getPendingXp(playerRef, activeSlot);
             if (pendingXp > 0) {
                 this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, false);
@@ -201,7 +207,10 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         
         // Cache the XP
         this.itemExpService.addPendingXp(playerRef, activeSlot, xpGained);
-        
+
+        // Award same XP to each equipped ring (per-hit, same as weapon)
+        this.awardRingXpAndFlushLevelUps(playerRef, xpGained);
+
         // Update the HUD to show the new pending XP (even though not flushed yet)
         this.hudDisplaySystem.updateHudForPlayer(playerRef, weapon, activeSlot);
         
@@ -228,6 +237,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 return;
             }
             
+            this.flushAllRingsPendingXp(playerRef);
             this.flushPendingXpAndSwap(playerRef, attackerRef, inventory, store, activeSlot, weapon, true);
             final ItemStack updatedWeapon = inventory.getActiveHotbarItem();
             
@@ -264,6 +274,53 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         }
     }
     
+    /**
+     * Flush all rings' pending XP for this player into the bauble container.
+     */
+    private void flushAllRingsPendingXp(@Nonnull final PlayerRef playerRef) {
+        final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
+        final short capacity = bauble.getCapacity();
+        for (short slot = 0; slot < capacity; slot++) {
+            final ItemStack stack = bauble.getItemStack(slot);
+            if (stack == null || ItemStack.isEmpty(stack) || !this.itemExpService.canGainXp(stack)) {
+                continue;
+            }
+            final double pending = this.itemExpService.getPendingXpForRing(playerRef, slot);
+            if (pending <= 0) {
+                continue;
+            }
+            final ItemStack updated = this.itemExpService.flushPendingXpForRing(stack, playerRef, slot);
+            bauble.setItemStackForSlot(slot, updated);
+        }
+    }
+
+    /**
+     * Award XP to each equipped ring and flush immediately if a ring levels up.
+     */
+    private void awardRingXpAndFlushLevelUps(@Nonnull final PlayerRef playerRef, final double xpGained) {
+        if (xpGained <= 0) return;
+        final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
+        final short capacity = bauble.getCapacity();
+        for (short slot = 0; slot < capacity; slot++) {
+            ItemStack stack = bauble.getItemStack(slot);
+            if (stack == null || ItemStack.isEmpty(stack) || !this.itemExpService.canGainXp(stack)) {
+                continue;
+            }
+            this.itemExpService.addPendingXpForRing(playerRef, slot, xpGained);
+            final double totalXp = this.itemExpService.getTotalXpWithPendingForRing(stack, playerRef, slot);
+            final int levelAfter = this.itemExpService.calculateLevelFromXp(totalXp);
+            final int currentLevel = this.itemExpService.getItemLevel(stack);
+            if (levelAfter > currentLevel) {
+                // Ring level up: flush pending, add embues, restore durability, write back
+                ItemStack updated = this.itemExpService.flushPendingXpForRing(stack, playerRef, slot);
+                updated = this.itemExpService.updateWeaponEffects(updated, levelAfter);
+                updated = this.itemExpService.addPendingEmbues(updated, levelAfter - currentLevel);
+                updated = updated.withDurability(updated.getMaxDurability());
+                bauble.setItemStackForSlot(slot, updated);
+            }
+        }
+    }
+
     /**
      * Flush pending XP and swap the weapon in the hotbar.
      * 

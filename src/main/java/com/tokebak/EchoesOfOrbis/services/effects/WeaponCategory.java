@@ -28,8 +28,13 @@ public enum WeaponCategory {
      * Magical weapons: wands, staves, etc.
      * Identified by item ID containing "wand" or "staff"
      */
-    MAGIC("magic");
-    
+    MAGIC("magic"),
+
+    /**
+     * Bauble rings: items with tag Bauble_Ring. Use XP/upgrade system like weapons.
+     */
+    RING("ring");
+
     private final String id;
     
     WeaponCategory(final String id) {
@@ -84,5 +89,12 @@ public enum WeaponCategory {
      */
     public static Set<WeaponCategory> ranged() {
         return EnumSet.of(PROJECTILE, MAGIC);
+    }
+
+    /**
+     * Get a set for bauble rings only.
+     */
+    public static Set<WeaponCategory> ring() {
+        return EnumSet.of(RING);
     }
 }

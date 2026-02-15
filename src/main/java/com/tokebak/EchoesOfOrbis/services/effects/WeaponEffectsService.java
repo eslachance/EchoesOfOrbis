@@ -4,14 +4,17 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.WeaponMaterialService;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.AttackPowerRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.DamagePercentEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.DurabilitySaveEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.FireOnHitEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.FreezeOnHitEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.HealthRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.LifeLeechEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.MultishotEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.PoisonOnHitEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.SlowOnHitEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.StaminaRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,6 +67,9 @@ public class WeaponEffectsService {
         this.register(new SlowOnHitEffectModule());
         this.register(new FreezeOnHitEffectModule());
         this.register(new MultishotEffectModule());
+        this.register(new StaminaRingEffectModule());
+        this.register(new HealthRingEffectModule());
+        this.register(new AttackPowerRingEffectModule());
     }
 
     /**

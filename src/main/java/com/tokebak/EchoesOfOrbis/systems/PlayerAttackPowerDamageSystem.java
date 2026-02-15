@@ -16,20 +16,30 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
+import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 
 import javax.annotation.Nonnull;
 import java.util.Set;
 
 /**
- * Applies a multiplicative bonus to damage dealt by players (general attack power).
- * Same idea as armor "DamageClassEnhancement" (e.g. Armor_Adamantite_Chest +6% light attack)
- * but done programmatically for all damage from players.
+ * Applies attack power multiplier from ring effects (RING_ATTACK_POWER) to damage dealt by players.
+ * Multiplier = 1.0 + sum of RING_ATTACK_POWER values from bauble rings.
  * Runs after filter damage group and before ApplyDamage.
  */
 public final class PlayerAttackPowerDamageSystem extends DamageEventSystem {
 
-    /** Multiplicative bonus for player deal damage (1.06 = +6%, same as Adamantite chest light attack). */
-    private static final float PLAYER_ATTACK_POWER_MULTIPLIER = 1.5f;
+    private final BaubleContainerService baubleContainerService;
+    private final WeaponEffectsService effectsService;
+
+    public PlayerAttackPowerDamageSystem(
+            @Nonnull BaubleContainerService baubleContainerService,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        this.baubleContainerService = baubleContainerService;
+        this.effectsService = effectsService;
+    }
 
     @Nonnull
     @Override
@@ -59,8 +69,11 @@ public final class PlayerAttackPowerDamageSystem extends DamageEventSystem {
         if (!(source instanceof Damage.EntitySource)) return;
         Ref<EntityStore> attackerRef = ((Damage.EntitySource) source).getRef();
         if (attackerRef == null || !attackerRef.isValid()) return;
-        if (store.getComponent(attackerRef, Player.getComponentType()) == null) return;
-        float newAmount = damage.getAmount() * PLAYER_ATTACK_POWER_MULTIPLIER;
+        Player player = store.getComponent(attackerRef, Player.getComponentType());
+        if (player == null) return;
+        var bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
+        float multiplier = PlayerStatModifierService.getAttackPowerMultiplierFromRings(bauble, this.effectsService);
+        float newAmount = damage.getAmount() * multiplier;
         damage.setAmount(newAmount);
     }
 }

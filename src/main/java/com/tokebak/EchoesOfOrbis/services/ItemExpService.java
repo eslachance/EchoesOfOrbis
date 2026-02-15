@@ -3,9 +3,9 @@ package com.tokebak.EchoesOfOrbis.services;
 
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.tokebak.EchoesOfOrbis.inventory.ItemTagUtil;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.services.effects.UpgradeOption;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
@@ -81,10 +81,17 @@ public class ItemExpService {
     }
     
     /**
-     * Get the cache key for pending XP.
+     * Get the cache key for pending XP (weapon hotbar slot).
      */
     public String getPendingXpKey(@Nonnull final PlayerRef playerRef, final byte slot) {
         return playerRef.getUuid().toString() + ":" + slot;
+    }
+
+    /**
+     * Get the cache key for pending XP on a bauble ring (bauble container slot).
+     */
+    public String getPendingXpKeyForRing(@Nonnull final PlayerRef playerRef, final short baubleSlot) {
+        return playerRef.getUuid().toString() + ":bauble:" + baubleSlot;
     }
     
     /**
@@ -144,6 +151,63 @@ public class ItemExpService {
      */
     public void clearPendingXp(@Nonnull final PlayerRef playerRef, final byte slot) {
         final String key = getPendingXpKey(playerRef, slot);
+        this.pendingXpCache.remove(key);
+    }
+
+    // ==================== RING XP (bauble container) ====================
+
+    /**
+     * Add XP to the pending cache for a bauble ring slot.
+     */
+    public void addPendingXpForRing(@Nonnull final PlayerRef playerRef, final short baubleSlot, final double xp) {
+        final String key = getPendingXpKeyForRing(playerRef, baubleSlot);
+        this.pendingXpCache.merge(key, xp, Double::sum);
+    }
+
+    /**
+     * Get pending XP for a bauble ring slot.
+     */
+    public double getPendingXpForRing(@Nonnull final PlayerRef playerRef, final short baubleSlot) {
+        final String key = getPendingXpKeyForRing(playerRef, baubleSlot);
+        final Double pending = this.pendingXpCache.get(key);
+        return pending != null ? pending : 0.0;
+    }
+
+    /**
+     * Get total XP for a ring (stored + pending).
+     */
+    public double getTotalXpWithPendingForRing(
+            @Nonnull final ItemStack ring,
+            @Nonnull final PlayerRef playerRef,
+            final short baubleSlot
+    ) {
+        final double storedXp = this.getItemXp(ring);
+        final double pendingXp = this.getPendingXpForRing(playerRef, baubleSlot);
+        return storedXp + pendingXp;
+    }
+
+    /**
+     * Flush pending XP for a bauble ring slot into the ring and return the updated stack.
+     */
+    @Nonnull
+    public ItemStack flushPendingXpForRing(
+            @Nonnull final ItemStack ring,
+            @Nonnull final PlayerRef playerRef,
+            final short baubleSlot
+    ) {
+        final String key = getPendingXpKeyForRing(playerRef, baubleSlot);
+        final Double pendingXp = this.pendingXpCache.remove(key);
+        if (pendingXp == null || pendingXp <= 0) {
+            return ring;
+        }
+        return this.addXpToItem(ring, pendingXp);
+    }
+
+    /**
+     * Clear pending XP for a bauble ring slot without applying it.
+     */
+    public void clearPendingXpForRing(@Nonnull final PlayerRef playerRef, final short baubleSlot) {
+        final String key = getPendingXpKeyForRing(playerRef, baubleSlot);
         this.pendingXpCache.remove(key);
     }
     
@@ -465,9 +529,8 @@ public class ItemExpService {
     }
 
     /**
-     * Check if an item can gain XP (is it a weapon/tool that should level up?)
-     * Only non-stackable weapons and tools can gain XP.
-     * Excludes arrows, bullets, and other projectile ammo (which stack).
+     * Check if an item can gain XP (weapon, tool, or bauble ring).
+     * Only non-stackable items can gain XP.
      */
     public boolean canGainXp(@Nullable final ItemStack item) {
         if (item == null || item.isEmpty()) {
@@ -476,10 +539,14 @@ public class ItemExpService {
 
         final var itemConfig = item.getItem();
 
-        // Exclude stackable items - ammo like arrows/bullets stack, real weapons don't
-        // maxStack > 1 means it's ammo or consumable, not a real weapon
+        // Exclude stackable items
         if (itemConfig.getMaxStack() > 1) {
             return false;
+        }
+
+        // Allow bauble rings (tag Bauble_Ring) to gain XP and get upgrades
+        if (ItemTagUtil.hasTag(item, "Bauble_Ring")) {
+            return true;
         }
 
         // Allow weapons and tools to gain XP

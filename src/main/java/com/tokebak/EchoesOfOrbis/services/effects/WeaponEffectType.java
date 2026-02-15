@@ -157,13 +157,30 @@ public enum WeaponEffectType {
      */
     KNOCKBACK("knockback", WeaponCategory.melee()),
     
+    // ==================== RING ONLY (bauble rings with tag Bauble_Ring) ====================
+
+    /**
+     * Bonus max stamina. Applied from rings in bauble container.
+     */
+    RING_STAMINA("ring_stamina", WeaponCategory.ring()),
+
+    /**
+     * Bonus max health. Applied from rings in bauble container.
+     */
+    RING_HEALTH("ring_health", WeaponCategory.ring()),
+
+    /**
+     * Bonus attack power (damage multiplier). Applied when player deals damage.
+     */
+    RING_ATTACK_POWER("ring_attack_power", WeaponCategory.ring()),
+
     // ==================== LEGACY / GENERIC ====================
-    
+
     /**
      * Modifies a player stat while the weapon is held.
      */
     PLAYER_STAT("player_stat", WeaponCategory.all());
-    
+
     private static final Map<String, WeaponEffectType> BY_ID = new HashMap<>();
     static {
         for (final WeaponEffectType t : values()) {

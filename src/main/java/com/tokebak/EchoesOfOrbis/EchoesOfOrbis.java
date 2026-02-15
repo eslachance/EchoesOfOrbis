@@ -64,6 +64,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.baubleContainerService.setStorageDir(this.getDataDirectory());
         this.baubleContainerService.setLogger(this.getLogger());
         this.baubleContainerService.setOnBaubleContainerChange(this::onBaubleContainerChanged);
+        BaubleContainerService.setInstance(this.baubleContainerService);
 
         // Register the custom F-key interaction for upgrade selection
         this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
@@ -77,13 +78,15 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
 
         // Register the damage system that processes combat events
-        // This handles XP gain, weapon effects, and durability save restoration
+        // This handles XP gain (weapon + rings), weapon effects, and durability save restoration
         this.getEntityStoreRegistry().registerSystem(
-                new ItemExpDamageSystem(this.itemExpService, cfg, this.hudDisplaySystem)
+                new ItemExpDamageSystem(this.itemExpService, cfg, this.hudDisplaySystem, this.baubleContainerService)
         );
 
-        // Apply +6% general attack power to all damage dealt by players (same idea as armor DamageClassEnhancement)
-        this.getEntityStoreRegistry().registerSystem(new PlayerAttackPowerDamageSystem());
+        // Apply attack power from ring effects (RING_ATTACK_POWER) to damage dealt by players
+        this.getEntityStoreRegistry().registerSystem(
+                new PlayerAttackPowerDamageSystem(this.baubleContainerService, this.weaponEffectsService)
+        );
 
         this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService, this.baubleContainerService));
 
@@ -91,22 +94,22 @@ public class EchoesOfOrbis extends JavaPlugin {
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
 
-        // Send welcome message when player joins and apply ring-based stats (stamina 25, health +50)
+        // Send welcome message when player joins and apply ring-effect stats (stamina, health)
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             Player player = event.getPlayer();
             Ref<EntityStore> ref = event.getPlayerRef();
             Store<EntityStore> store = ref.getStore();
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
-            boolean hasStaminaRing = PlayerStatModifierService.hasStaminaRingInInventory(player.getInventory(), bauble);
-            boolean hasHealthRing = PlayerStatModifierService.hasHealthRingInInventory(player.getInventory(), bauble);
-            PlayerStatModifierService.updateStaminaFromRing(ref, store, hasStaminaRing);
-            PlayerStatModifierService.updateHealthFromRing(ref, store, hasHealthRing);
+            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
+            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
+            PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
             player.getStatModifiersManager().setRecalculate(true);
             onlinePlayers.put(player.getPlayerRef().getUuid(), player.getPlayerRef());
             player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
         });
 
-        // When any player inventory changes, refresh ring-based stats (stamina, health)
+        // When any player inventory changes, refresh ring-effect stats (stamina, health)
         this.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, event -> {
             LivingEntity entity = event.getEntity();
             if (!(entity instanceof Player)) return;
@@ -115,10 +118,10 @@ public class EchoesOfOrbis extends JavaPlugin {
             if (ref == null || !ref.isValid()) return;
             Store<EntityStore> store = ref.getStore();
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
-            boolean hasStaminaRing = PlayerStatModifierService.hasStaminaRingInInventory(player.getInventory(), bauble);
-            boolean hasHealthRing = PlayerStatModifierService.hasHealthRingInInventory(player.getInventory(), bauble);
-            PlayerStatModifierService.updateStaminaFromRing(ref, store, hasStaminaRing);
-            PlayerStatModifierService.updateHealthFromRing(ref, store, hasHealthRing);
+            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
+            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
+            PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
             entity.getStatModifiersManager().setRecalculate(true);
         });
 
@@ -142,10 +145,10 @@ public class EchoesOfOrbis extends JavaPlugin {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
         ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
-        boolean hasStaminaRing = PlayerStatModifierService.hasStaminaRingInInventory(player.getInventory(), bauble);
-        boolean hasHealthRing = PlayerStatModifierService.hasHealthRingInInventory(player.getInventory(), bauble);
-        PlayerStatModifierService.updateStaminaFromRing(ref, store, hasStaminaRing);
-        PlayerStatModifierService.updateHealthFromRing(ref, store, hasHealthRing);
+        double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
+        double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+        PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
+        PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
         player.getStatModifiersManager().setRecalculate(true);
     }
 }
