@@ -10,10 +10,13 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.commands.EooCommand;
+import com.tokebak.EchoesOfOrbis.commands.TrashCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.services.PlayerStatModifierService;
 import com.tokebak.EchoesOfOrbis.systems.HudDisplaySystem;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
@@ -23,6 +26,7 @@ public class EchoesOfOrbis extends JavaPlugin {
     private final Config<EchoesOfOrbisConfig> config;
     private WeaponEffectsService weaponEffectsService;
     private ItemExpService itemExpService;
+    private BaubleContainerService baubleContainerService;
     private HudDisplaySystem hudDisplaySystem;
 
     public EchoesOfOrbis(@NonNullDecl JavaPluginInit init) {
@@ -45,6 +49,8 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.itemExpService = new ItemExpService(cfg, this.weaponEffectsService);
         ItemExpService.setInstance(this.itemExpService);
 
+        this.baubleContainerService = new BaubleContainerService();
+
         // Register the custom F-key interaction for upgrade selection
         this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
                 .register(com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.ID,
@@ -62,15 +68,17 @@ public class EchoesOfOrbis extends JavaPlugin {
                 new ItemExpDamageSystem(this.itemExpService, cfg, this.hudDisplaySystem)
         );
 
-        this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService));
+        this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService, this.baubleContainerService));
+        this.getCommandRegistry().registerCommand(new TrashCommand());
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
 
-        // Send welcome message when player joins
+        // Send welcome message when player joins and apply base stat modifiers (e.g. stamina 25)
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             Player player = event.getPlayer();
+            PlayerStatModifierService.applyBaseStatModifiers(event.getPlayerRef(), event.getPlayerRef().getStore());
             player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
         });
 
@@ -78,6 +86,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
             PlayerRef playerRef = event.getPlayerRef();
             this.hudDisplaySystem.cleanupPlayer(playerRef.getUuid());
+            this.baubleContainerService.cleanupPlayer(playerRef.getUuid());
         });
     }
 }

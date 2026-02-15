@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
@@ -32,21 +33,24 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
     @Nonnull
     private final ItemExpService itemExpService;
-    
+    @Nonnull
+    private final BaubleContainerService baubleContainerService;
     @Nonnull
     private final PlayerRef playerRef;
-    
+
     // Store weapon info for click event handling
     private List<WeaponInfo> weaponsList;
 
     public EOO_Main_Page(
             @Nonnull PlayerRef playerRef,
             @Nonnull CustomPageLifetime lifetime,
-            @Nonnull ItemExpService itemExpService
+            @Nonnull ItemExpService itemExpService,
+            @Nonnull BaubleContainerService baubleContainerService
     ) {
         super(playerRef, lifetime, Data.CODEC);
         this.playerRef = playerRef;
         this.itemExpService = itemExpService;
+        this.baubleContainerService = baubleContainerService;
     }
 
     @Override
@@ -58,6 +62,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     ) {
         // Load the UI file
         uiCommandBuilder.append("EOO_Main_Page.ui");
+        // Append the Bauble button from its own UI file (so event binding targets a real element)
+        uiCommandBuilder.append("#BaubleButtonContainer", "EOO_Bauble_Button.ui");
 
         // Get the player's inventory
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
@@ -83,7 +89,14 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
 
         // Update item count
         uiCommandBuilder.set("#ItemCount.Text", this.weaponsList.size() + " items found");
-        
+
+        // Bauble (3-slot backpack) button - bound to the button from EOO_Bauble_Button.ui
+        uiEventBuilder.addEventBinding(
+                CustomUIEventBindingType.Activating,
+                "#BaubleButtonContainer #BaubleButton",
+                EventData.of("Action", "openBauble")
+        );
+
         // Check if player is in creative mode (for debug button visibility)
         final boolean isCreativeMode = playerComponent.getGameMode() == GameMode.Creative;
 
@@ -277,6 +290,16 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             @Nonnull Store<EntityStore> store,
             Data data
     ) {
+        // Handle bauble (3-slot backpack) button click - open Bench page with our 3-slot container (shows slots)
+        if ("openBauble".equals(data.action)) {
+            final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+            if (playerComponent != null) {
+                this.baubleContainerService.openBaubleAsBenchPage(ref, store, playerComponent);
+            }
+            sendUpdate();
+            return;
+        }
+
         // Handle embue button click
         if ("embue".equals(data.action) && data.weaponIndex != null) {
             try {

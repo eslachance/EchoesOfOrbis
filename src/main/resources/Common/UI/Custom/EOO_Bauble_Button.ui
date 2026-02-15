@@ -1,0 +1,18 @@
+$Common = "Common.ui";
+
+@BaubleButtonStyle = TextButtonStyle(
+  Default: (Background: #2a3542, LabelStyle: (FontSize: 14, TextColor: #c0a060, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #3a4552, LabelStyle: (FontSize: 14, TextColor: #e0c080, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #1a2532, LabelStyle: (FontSize: 14, TextColor: #c0a060, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
+Group #BaubleButtonWrapper {
+    LayoutMode: Left;
+    Anchor: (Height: 40);
+
+    TextButton #BaubleButton {
+        Text: "Bauble (3 slots)";
+        Anchor: (Width: 180, Height: 32);
+        Style: @BaubleButtonStyle;
+    }
+}

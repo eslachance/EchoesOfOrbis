@@ -21,6 +21,10 @@ Group {
             Padding: (Bottom: 10);
         }
 
+        Group #BaubleButtonContainer {
+            Anchor: (Height: 40);
+        }
+
         Group #ItemListContainer {
             Anchor: (Width: 605, Top: 5);
             FlexWeight: 1;

@@ -1,0 +1,52 @@
+$Common = "Common.ui";
+
+@CloseButtonStyle = TextButtonStyle(
+  Default: (Background: #2b3542, LabelStyle: (FontSize: 14, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #3b4552, LabelStyle: (FontSize: 14, TextColor: #b6c9de, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #1b2532, LabelStyle: (FontSize: 14, TextColor: #96a9be, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
+Group {
+    LayoutMode: Center;
+
+    Group #BaublePanel {
+        Background: $Common.@InputBoxBackground;
+        Anchor: (Width: 320, Height: 220);
+        LayoutMode: Top;
+        Padding: (Full: 20);
+
+        Label #Title {
+            Style: (FontSize: 20, Alignment: Center, TextColor: #c0a060, RenderBold: true);
+            Text: "Bauble";
+        }
+
+        Label #Subtitle {
+            Style: (FontSize: 14, Alignment: Center, TextColor: #888888);
+            Anchor: (Top: 8);
+            Text: "3 slots — use the inventory window to move items";
+        }
+
+        Label #Hint {
+            Style: (FontSize: 12, Alignment: Center, TextColor: #666666);
+            Anchor: (Top: 6);
+            Text: "The 3-slot window can be moved; close this panel when done.";
+        }
+
+        Group { Anchor: (Height: 24); }
+
+        Group {
+            LayoutMode: Left;
+            Anchor: (Height: 40);
+
+            Group { FlexWeight: 1; }
+
+            TextButton #CloseButton {
+                Text: "CLOSE";
+                Anchor: (Width: 120, Height: 36);
+                Style: @CloseButtonStyle;
+            }
+
+            Group { FlexWeight: 1; }
+        }
+    }
+}
