@@ -369,28 +369,11 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         // Get the new level AFTER flushing
         final int levelAfter = this.itemExpService.getItemLevel(weapon);
         
-        if (this.config.isDebug()) {
-            final double xpAfter = this.itemExpService.getItemXp(weapon);
-            System.out.println(String.format(
-                    "[EOO] flushPendingXpAndSwap: AFTER flush - Level=%d, StoredXP=%.2f, isLevelUp=%s",
-                    levelAfter, xpAfter, isLevelUp
-            ));
-        }
-        
         // Effects are static - only change when player selects upgrade (no auto-update)
         weapon = this.itemExpService.updateWeaponEffects(weapon, levelAfter);
         
         // Every level crossed gives 1 pending embue (Vampire Survivors style)
         weapon = this.itemExpService.addPendingEmbues(weapon, levelAfter - levelBefore);
-        
-        if (this.config.isDebug()) {
-            System.out.println(String.format("[EOO] After adding embues: pendingEmbues=%d", this.itemExpService.getPendingEmbues(weapon)));
-        }
-        
-        // Apply level-up bonuses
-        if (isLevelUp) {
-            weapon = weapon.withDurability(weapon.getMaxDurability());
-        }
         
         // Swap the weapon: preserve SignatureEnergy normally, maximize on level up
         if (isLevelUp) {
