@@ -1,0 +1,63 @@
+$Common = "Common.ui";
+
+@EmbueButtonStyle = TextButtonStyle(
+  Default: (Background: #1a2633, LabelStyle: (FontSize: 12, TextColor: #4a9eff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #2a3643, LabelStyle: (FontSize: 12, TextColor: #6ab9ff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #0a1623, LabelStyle: (FontSize: 12, TextColor: #4a9eff, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
+@DebugButtonStyle = TextButtonStyle(
+  Default: (Background: #3d2e1a, LabelStyle: (FontSize: 11, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: #4d3e2a, LabelStyle: (FontSize: 11, TextColor: #ffcc6a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: #2d1e0a, LabelStyle: (FontSize: 11, TextColor: #ffaa4a, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center))
+);
+
+Group #Entry {
+    Background: (Color: #2d2a1a);
+    Anchor: (Width: 585, Bottom: 6);
+    LayoutMode: Top;
+    Padding: (Left: 10, Right: 10, Top: 10, Bottom: 24);
+
+    Group #HeaderRow {
+        LayoutMode: Left;
+        Anchor: (Height: 22);
+
+        Label #ItemName {
+            Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true);
+            FlexWeight: 1;
+            Text: "Item Name [Lv. 1]";
+        }
+
+        TextButton #EmbueButton {
+            Text: "+1 Embues";
+            Anchor: (Width: 90, Height: 22);
+            Style: @EmbueButtonStyle;
+            Visible: false;
+        }
+
+        TextButton #DebugButton {
+            Text: "Debug";
+            Anchor: (Width: 60, Height: 22);
+            Style: @DebugButtonStyle;
+            Visible: false;
+        }
+    }
+
+    Label #XpInfo {
+        Style: (FontSize: 13, TextColor: #88ccff);
+        Anchor: (Top: 2);
+        Text: "XP: 0 / 100 (0%)";
+    }
+
+    Label #Effects {
+        Style: (FontSize: 12, TextColor: #88ff88);
+        Anchor: (Top: 2);
+        Text: "Effects: None";
+    }
+
+    Label #Location {
+        Style: (FontSize: 11, TextColor: #666666);
+        Anchor: (Top: 2);
+        Text: "Location: Hotbar slot 1";
+    }
+}
