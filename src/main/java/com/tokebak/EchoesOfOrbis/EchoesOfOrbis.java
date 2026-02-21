@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.Config;
-import com.tokebak.EchoesOfOrbis.commands.EooCommand;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
 import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
@@ -95,8 +94,6 @@ public class EchoesOfOrbis extends JavaPlugin {
                 new ThornsDamageSystem(this.baubleContainerService, this.weaponEffectsService)
         );
 
-        this.getCommandRegistry().registerCommand(new EooCommand(this.itemExpService, this.baubleContainerService));
-
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
         System.out.println("[EOO]: Echoes of Orbis is loaded!");
@@ -118,7 +115,7 @@ public class EchoesOfOrbis extends JavaPlugin {
             RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
             player.getStatModifiersManager().setRecalculate(true);
             onlinePlayers.put(player.getPlayerRef().getUuid(), player.getPlayerRef());
-            player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Use /eoo to see UI"));
+            player.sendMessage(Message.raw("[EOO] Echoes of Orbis Loaded. Press F to open the item experience UI."));
         });
 
         // When any player inventory changes, refresh ring-effect stats (stamina, health)

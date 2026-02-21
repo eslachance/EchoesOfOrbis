@@ -10,8 +10,6 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.Inventory;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.interaction.BlockHarvestUtils;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHandler;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.SimpleInstantInteraction;
@@ -22,14 +20,14 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
-import com.tokebak.EchoesOfOrbis.ui.EOO_Embue_Selection_Page;
+import com.tokebak.EchoesOfOrbis.ui.EOO_Main_Page;
 
 import javax.annotation.Nonnull;
 
 /**
- * Spellbook-style custom interaction. When the player presses F (Use) with a weapon
- * that has pending upgrades, opens the upgrade selection UI. Otherwise fails so the
- * chain continues to UseBlock/UseEntity/etc.
+ * Custom interaction. When the player presses F (Use) and no world interaction applies
+ * (no target entity, no harvestable block), opens the main Echoes of Orbis UI.
+ * Does not require holding an upgradeable weapon.
  *
  * Registered and wired into the Use interaction chain via Empty.json override.
  */
@@ -85,28 +83,9 @@ public final class ShowUpgradeSelectionInteraction extends SimpleInstantInteract
             }
         }
 
-        final ItemStack heldItem = context.getHeldItem();
-        if (heldItem == null) {
-            System.out.println("[EOO Interaction] FAIL: heldItem=null");
-            context.getState().state = InteractionState.Failed;
-            return;
-        }
-
         final ItemExpService itemExpService = ItemExpService.getInstance();
         if (itemExpService == null) {
             System.out.println("[EOO Interaction] FAIL: itemExpService=null");
-            context.getState().state = InteractionState.Failed;
-            return;
-        }
-
-        if (!itemExpService.canGainXp(heldItem)) {
-            System.out.println("[EOO Interaction] FAIL: canGainXp=false, itemId=" + heldItem.getItemId());
-            context.getState().state = InteractionState.Failed;
-            return;
-        }
-
-        if (itemExpService.getPendingEmbues(heldItem) <= 0) {
-            System.out.println("[EOO Interaction] FAIL: pendingEmbues<=0, itemId=" + heldItem.getItemId());
             context.getState().state = InteractionState.Failed;
             return;
         }
@@ -132,37 +111,22 @@ public final class ShowUpgradeSelectionInteraction extends SimpleInstantInteract
             return;
         }
 
-        final Inventory inventory = player.getInventory();
-        if (inventory == null) {
-            System.out.println("[EOO Interaction] FAIL: inventory=null");
-            context.getState().state = InteractionState.Failed;
-            return;
-        }
-
-        final byte activeSlot = context.getHeldItemSlot();
-        if (activeSlot < 0) {
-            System.out.println("[EOO Interaction] FAIL: activeSlot=" + activeSlot);
-            context.getState().state = InteractionState.Failed;
-            return;
-        }
-
         final BaubleContainerService baubleContainerService = BaubleContainerService.getInstance();
         if (baubleContainerService == null) {
             System.out.println("[EOO Interaction] FAIL: baubleContainerService=null");
             context.getState().state = InteractionState.Failed;
             return;
         }
-        final EOO_Embue_Selection_Page selectionPage = new EOO_Embue_Selection_Page(
+
+        final EOO_Main_Page mainPage = new EOO_Main_Page(
                 playerRefComponent,
                 CustomPageLifetime.CanDismiss,
                 itemExpService,
-                "Hotbar",
-                activeSlot,
                 baubleContainerService
         );
-        player.getPageManager().openCustomPage(playerRef, store, selectionPage);
+        player.getPageManager().openCustomPage(playerRef, store, mainPage);
 
-        System.out.println("[EOO Interaction] SUCCESS: opened upgrade selection for itemId=" + heldItem.getItemId());
+        System.out.println("[EOO Interaction] SUCCESS: opened main EOO UI");
         context.getState().state = InteractionState.Finished;
     }
 }
