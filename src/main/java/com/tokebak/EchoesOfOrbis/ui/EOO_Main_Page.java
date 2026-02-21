@@ -116,8 +116,9 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         for (int i = 0; i < this.weaponsList.size(); i++) {
             final WeaponInfo weapon = this.weaponsList.get(i);
 
-            // Append the entry template
-            uiCommandBuilder.append("#ItemList", "EOO_Item_Entry.ui");
+            // Use highlighted template for the held item (first in list), normal template otherwise
+            final boolean useHeldTemplate = (i == 0 && weapon.isHeld);
+            uiCommandBuilder.append("#ItemList", useHeldTemplate ? "EOO_Item_Entry_Held.ui" : "EOO_Item_Entry.ui");
 
             // Set values using selector
             final String sel = "#ItemList[" + i + "]";

@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
-import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.inventory.Inventory;
@@ -199,8 +198,15 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
                 effectType.getId(),
                 weapon.getItemId()
         ));
-        
-        playerComponent.getPageManager().setPage(ref, store, Page.None);
+
+        // Return to main EOO menu instead of closing
+        final EOO_Main_Page mainPage = new EOO_Main_Page(
+                this.playerRef,
+                CustomPageLifetime.CanDismiss,
+                this.itemExpService,
+                this.baubleContainerService
+        );
+        playerComponent.getPageManager().openCustomPage(ref, store, mainPage);
     }
     
     /**
@@ -313,11 +319,17 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             @Nonnull Store<EntityStore> store,
             Data data
     ) {
-        // Handle cancel
+        // Handle cancel - return to main EOO menu
         if ("true".equals(data.cancel)) {
             final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
             if (playerComponent != null) {
-                playerComponent.getPageManager().setPage(ref, store, Page.None);
+                final EOO_Main_Page mainPage = new EOO_Main_Page(
+                        this.playerRef,
+                        CustomPageLifetime.CanDismiss,
+                        this.itemExpService,
+                        this.baubleContainerService
+                );
+                playerComponent.getPageManager().openCustomPage(ref, store, mainPage);
             }
             return;
         }
