@@ -73,27 +73,30 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         }
 
         final Inventory inventory = playerComponent.getInventory();
+        final int activeHotbarSlot = inventory.getActiveHotbarSlot();
 
         // Collect all XP-gaining items: hotbar, storage, backpack, and bauble (rings/amulets)
         this.weaponsList = new ArrayList<>();
-        collectWeapons(inventory.getHotbar(), "Hotbar", this.weaponsList);
-        collectWeapons(inventory.getStorage(), "Storage", this.weaponsList);
-        collectWeapons(inventory.getBackpack(), "Backpack", this.weaponsList);
+        collectWeapons(inventory.getHotbar(), "Hotbar", this.weaponsList, activeHotbarSlot);
+        collectWeapons(inventory.getStorage(), "Storage", this.weaponsList, -1);
+        collectWeapons(inventory.getBackpack(), "Backpack", this.weaponsList, -1);
         // Use the ref passed to build() so we get this player's bauble container (not a stale playerRef)
         final PlayerRef playerRefForBuild = (PlayerRef) store.getComponent(ref, PlayerRef.getComponentType());
         if (playerRefForBuild != null) {
             final int beforeBauble = this.weaponsList.size();
             final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRefForBuild);
-            collectWeapons(bauble, "Bauble", this.weaponsList);
+            collectWeapons(bauble, "Bauble", this.weaponsList, -1);
             final int fromBauble = this.weaponsList.size() - beforeBauble;
             System.out.println("[EOO UI] Bauble: " + fromBauble + " XP-gaining item(s) (container slots=" + bauble.getCapacity() + ")");
         }
 
-        // Sort: used items first (by level desc, then XP desc), unused items at bottom
+        // Sort: (1) held item first, (2) items with available embues, (3) items with XP but no embues, (4) unused at end
         this.weaponsList.sort(Comparator
-                .comparing((WeaponInfo w) -> w.isUnused)           // unused items last
-                .thenComparing((WeaponInfo w) -> w.level, Comparator.reverseOrder())  // highest level first
-                .thenComparing((WeaponInfo w) -> w.totalXp, Comparator.reverseOrder()) // highest XP first
+                .comparing((WeaponInfo w) -> !w.isHeld)                    // held item first
+                .thenComparing((WeaponInfo w) -> w.pendingEmbues <= 0)     // has available embues second
+                .thenComparing((WeaponInfo w) -> w.isUnused)               // has XP (no embues) before unused
+                .thenComparing((WeaponInfo w) -> w.level, Comparator.reverseOrder())
+                .thenComparing((WeaponInfo w) -> w.totalXp, Comparator.reverseOrder())
         );
 
         // Update item count
@@ -169,7 +172,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
     private void collectWeapons(
             @Nonnull ItemContainer container,
             @Nonnull String containerName,
-            @Nonnull List<WeaponInfo> weapons
+            @Nonnull List<WeaponInfo> weapons,
+            int activeHotbarSlot
     ) {
         final short capacity = container.getCapacity();
         for (short slot = 0; slot < capacity; slot++) {
@@ -186,7 +190,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                 System.out.println("[EOO UI] Bauble slot " + slot + ": " + itemId + " canGainXp=" + canGain);
             }
             if (canGain) {
-                weapons.add(new WeaponInfo(item, containerName, slot));
+                final boolean isHeld = "Hotbar".equals(containerName) && activeHotbarSlot >= 0 && slot == activeHotbarSlot;
+                weapons.add(new WeaponInfo(item, containerName, slot, isHeld));
             }
         }
     }
@@ -261,6 +266,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final ItemStack item;
         final String containerName;
         final int slot;
+        final boolean isHeld;
         final int level;
         final double totalXp;
         final WeaponCategory category;
@@ -271,10 +277,11 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final boolean isUnused;
         final int pendingEmbues;
 
-        WeaponInfo(ItemStack item, String containerName, int slot) {
+        WeaponInfo(ItemStack item, String containerName, int slot, boolean isHeld) {
             this.item = item;
             this.containerName = containerName;
             this.slot = slot;
+            this.isHeld = isHeld;
             this.level = itemExpService.getItemLevel(item);
             this.totalXp = itemExpService.getItemXp(item);
             this.isUnused = this.totalXp == 0;
