@@ -160,39 +160,61 @@ public enum WeaponEffectType {
     // ==================== RING ONLY (bauble rings with tag Bauble_Ring) ====================
 
     /**
-     * Bonus max stamina. Applied from rings in bauble container.
+     * Bonus max stamina. Applied from rings in bauble container or from armor.
      */
-    RING_STAMINA("ring_stamina", WeaponCategory.ring()),
+    RING_STAMINA("ring_stamina", WeaponCategory.ringAndArmor()),
 
     /**
-     * Bonus max health. Applied from rings in bauble container.
+     * Bonus max health. Applied from rings in bauble container or from armor.
      */
-    RING_HEALTH("ring_health", WeaponCategory.ring()),
+    RING_HEALTH("ring_health", WeaponCategory.ringAndArmor()),
 
     /**
-     * Bonus attack power (damage multiplier). Applied when player deals damage.
+     * Bonus attack power (damage multiplier). Applied when player deals damage. Rings only (offensive).
      */
     RING_ATTACK_POWER("ring_attack_power", WeaponCategory.ring()),
 
     /**
-     * Health regen (same idea as food effect e.g. Health Regen I). Applied as stat modifier from rings.
+     * Health regen (same idea as food effect e.g. Health Regen I). Rings only.
      */
     RING_HEALTH_REGEN("ring_health_regen", WeaponCategory.ring()),
 
     /**
-     * Resist magic (damage reduction vs magic). Applied as stat modifier from rings; if no single stat, use separate resist effects.
+     * Resist magic (damage reduction vs magic). Applied from rings or armor.
      */
-    RING_RESIST_MAGIC("ring_resist_magic", WeaponCategory.ring()),
+    RING_RESIST_MAGIC("ring_resist_magic", WeaponCategory.ringAndArmor()),
 
     /**
      * Thorns: when the player takes damage, reflect damage back at the attacker.
      */
-    RING_THORNS("ring_thorns", WeaponCategory.ring()),
+    RING_THORNS("ring_thorns", WeaponCategory.ringAndArmor()),
 
     /**
      * Signature energy boost: +1 extra signature energy per level added on every attack.
      */
-    RING_SIGNATURE_ENERGY("ring_signature_energy", WeaponCategory.ring()),
+    RING_SIGNATURE_ENERGY("ring_signature_energy", WeaponCategory.ringAndArmor()),
+
+    // ==================== ARMOR ONLY (defensive resistance effects) ====================
+
+    /**
+     * Projectile resistance. Applied as stat modifier from equipped armor.
+     */
+    ARMOR_PROJECTILE_RESISTANCE("armor_projectile_resistance", WeaponCategory.armor()),
+
+    /**
+     * Physical resistance. Applied as stat modifier from equipped armor.
+     */
+    ARMOR_PHYSICAL_RESISTANCE("armor_physical_resistance", WeaponCategory.armor()),
+
+    /**
+     * Fire resistance. Applied as stat modifier from equipped armor.
+     */
+    ARMOR_FIRE_RESISTANCE("armor_fire_resistance", WeaponCategory.armor()),
+
+    /**
+     * General resistance (all damage types). Applied as stat modifier from equipped armor.
+     */
+    ARMOR_GENERAL_RESISTANCE("armor_general_resistance", WeaponCategory.armor()),
 
     // ==================== LEGACY / GENERIC ====================
 

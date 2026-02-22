@@ -31,6 +31,10 @@ public final class PlayerStatModifierService {
     private static final String HEALTH_MODIFIER_KEY = "EooHealthRings";
     private static final String HEALTH_REGEN_MODIFIER_KEY = "EooHealthRegenRings";
     private static final String RESIST_MAGIC_MODIFIER_KEY = "EooResistMagicRings";
+    private static final String RESIST_PROJECTILE_MODIFIER_KEY = "EooResistProjectileArmor";
+    private static final String RESIST_PHYSICAL_MODIFIER_KEY = "EooResistPhysicalArmor";
+    private static final String RESIST_FIRE_MODIFIER_KEY = "EooResistFireArmor";
+    private static final String RESIST_GENERAL_MODIFIER_KEY = "EooResistGeneralArmor";
 
     private PlayerStatModifierService() {}
 
@@ -50,6 +54,33 @@ public final class PlayerStatModifierService {
         for (short i = 0; i < capacity; i++) {
             ItemStack stack = baubleContainer.getItemStack(i);
             if (stack == null || ItemStack.isEmpty(stack) || !ItemTagUtil.hasTag(stack, "Bauble_Ring")) continue;
+            List<WeaponEffectInstance> effects = effectsService.getEffects(stack);
+            for (WeaponEffectInstance inst : effects) {
+                if (inst != null && inst.getType() == effectType) {
+                    total += def.calculateValue(inst.getLevel());
+                }
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Sum effect value for a given type across all armor pieces in the container.
+     * Only counts items that are armor (item.getArmor() != null).
+     */
+    private static double sumEffectValueFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService,
+            @Nonnull WeaponEffectType effectType
+    ) {
+        if (armorContainer == null) return 0.0;
+        WeaponEffectDefinition def = effectsService.getDefinition(effectType);
+        if (def == null) return 0.0;
+        double total = 0.0;
+        short capacity = armorContainer.getCapacity();
+        for (short i = 0; i < capacity; i++) {
+            ItemStack stack = armorContainer.getItemStack(i);
+            if (stack == null || ItemStack.isEmpty(stack) || stack.getItem() == null || stack.getItem().getArmor() == null) continue;
             List<WeaponEffectInstance> effects = effectsService.getEffects(stack);
             for (WeaponEffectInstance inst : effects) {
                 if (inst != null && inst.getType() == effectType) {
@@ -129,6 +160,71 @@ public final class PlayerStatModifierService {
             @Nonnull WeaponEffectsService effectsService
     ) {
         return sumEffectValue(baubleContainer, effectsService, WeaponEffectType.RING_SIGNATURE_ENERGY);
+    }
+
+    // ==================== Armor container (ring-and-armor effects + armor-only resistance) ====================
+
+    public static double getStaminaBonusFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.RING_STAMINA);
+    }
+
+    public static double getHealthBonusFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.RING_HEALTH);
+    }
+
+    public static double getResistMagicFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.RING_RESIST_MAGIC);
+    }
+
+    public static double getThornsFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.RING_THORNS);
+    }
+
+    public static double getSignatureEnergyBonusFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.RING_SIGNATURE_ENERGY);
+    }
+
+    public static double getProjectileResistanceFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.ARMOR_PROJECTILE_RESISTANCE);
+    }
+
+    public static double getPhysicalResistanceFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.ARMOR_PHYSICAL_RESISTANCE);
+    }
+
+    public static double getFireResistanceFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.ARMOR_FIRE_RESISTANCE);
+    }
+
+    public static double getGeneralResistanceFromArmor(
+            @Nullable ItemContainer armorContainer,
+            @Nonnull WeaponEffectsService effectsService
+    ) {
+        return sumEffectValueFromArmor(armorContainer, effectsService, WeaponEffectType.ARMOR_GENERAL_RESISTANCE);
     }
 
     /**
@@ -219,9 +315,63 @@ public final class PlayerStatModifierService {
             @Nonnull Store<EntityStore> store,
             double bonus
     ) {
+        applyResistStat(ref, store, "ResistMagic", RESIST_MAGIC_MODIFIER_KEY, bonus);
+    }
+
+    /**
+     * Applies or removes projectile resistance from armor. No-op if engine has no such stat.
+     */
+    public static void updateResistProjectileFromArmor(
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            double bonus
+    ) {
+        applyResistStat(ref, store, "ResistProjectile", RESIST_PROJECTILE_MODIFIER_KEY, bonus);
+    }
+
+    /**
+     * Applies or removes physical resistance from armor. No-op if engine has no such stat.
+     */
+    public static void updateResistPhysicalFromArmor(
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            double bonus
+    ) {
+        applyResistStat(ref, store, "ResistPhysical", RESIST_PHYSICAL_MODIFIER_KEY, bonus);
+    }
+
+    /**
+     * Applies or removes fire resistance from armor. No-op if engine has no such stat.
+     */
+    public static void updateResistFireFromArmor(
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            double bonus
+    ) {
+        applyResistStat(ref, store, "ResistFire", RESIST_FIRE_MODIFIER_KEY, bonus);
+    }
+
+    /**
+     * Applies or removes general resistance from armor. No-op if engine has no such stat.
+     */
+    public static void updateResistGeneralFromArmor(
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            double bonus
+    ) {
+        applyResistStat(ref, store, "ResistGeneral", RESIST_GENERAL_MODIFIER_KEY, bonus);
+    }
+
+    private static void applyResistStat(
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull String statName,
+            @Nonnull String modifierKey,
+            double bonus
+    ) {
         EntityStatMap statMap = store.getComponent(ref, EntityStatsModule.get().getEntityStatMapComponentType());
         if (statMap == null) return;
-        int index = EntityStatType.getAssetMap().getIndex("ResistMagic");
+        int index = EntityStatType.getAssetMap().getIndex(statName);
         if (index == Integer.MIN_VALUE) return;
         if (bonus > 0) {
             StaticModifier mod = new StaticModifier(
@@ -229,9 +379,9 @@ public final class PlayerStatModifierService {
                     StaticModifier.CalculationType.ADDITIVE,
                     (float) bonus
             );
-            statMap.putModifier(index, RESIST_MAGIC_MODIFIER_KEY, mod);
+            statMap.putModifier(index, modifierKey, mod);
         } else {
-            statMap.removeModifier(index, RESIST_MAGIC_MODIFIER_KEY);
+            statMap.removeModifier(index, modifierKey);
         }
     }
 }

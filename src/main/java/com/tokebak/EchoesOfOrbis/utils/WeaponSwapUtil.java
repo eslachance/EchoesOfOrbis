@@ -99,6 +99,7 @@ public final class WeaponSwapUtil {
             case "Hotbar" -> inventory.getHotbar();
             case "Storage" -> inventory.getStorage();
             case "Backpack" -> inventory.getBackpack();
+            case "Armor" -> inventory.getArmor();
             default -> null;
         };
     }

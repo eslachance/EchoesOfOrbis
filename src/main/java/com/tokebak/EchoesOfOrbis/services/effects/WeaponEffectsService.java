@@ -5,6 +5,10 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.tokebak.EchoesOfOrbis.services.WeaponMaterialService;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.AttackPowerRingEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorFireResistanceEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorGeneralResistanceEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorPhysicalResistanceEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorProjectileResistanceEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.DamagePercentEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.HealthRegenRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.DurabilitySaveEffectModule;
@@ -78,6 +82,10 @@ public class WeaponEffectsService {
         this.register(new ResistMagicRingEffectModule());
         this.register(new ThornsRingEffectModule());
         this.register(new SignatureEnergyRingEffectModule());
+        this.register(new ArmorProjectileResistanceEffectModule());
+        this.register(new ArmorPhysicalResistanceEffectModule());
+        this.register(new ArmorFireResistanceEffectModule());
+        this.register(new ArmorGeneralResistanceEffectModule());
     }
 
     /**

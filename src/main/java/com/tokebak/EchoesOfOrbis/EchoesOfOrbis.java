@@ -104,14 +104,22 @@ public class EchoesOfOrbis extends JavaPlugin {
             Ref<EntityStore> ref = event.getPlayerRef();
             Store<EntityStore> store = ref.getStore();
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
-            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
-            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            ItemContainer armor = player.getInventory() != null ? player.getInventory().getArmor() : null;
+            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getStaminaBonusFromArmor(armor, this.weaponEffectsService);
+            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getHealthBonusFromArmor(armor, this.weaponEffectsService);
             double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
-            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
+            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getResistMagicFromArmor(armor, this.weaponEffectsService);
             PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
             PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
             PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
             PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+            PlayerStatModifierService.updateResistProjectileFromArmor(ref, store, PlayerStatModifierService.getProjectileResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistPhysicalFromArmor(ref, store, PlayerStatModifierService.getPhysicalResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistFireFromArmor(ref, store, PlayerStatModifierService.getFireResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistGeneralFromArmor(ref, store, PlayerStatModifierService.getGeneralResistanceFromArmor(armor, this.weaponEffectsService));
             RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
             player.getStatModifiersManager().setRecalculate(true);
             onlinePlayers.put(player.getPlayerRef().getUuid(), player.getPlayerRef());
@@ -127,14 +135,22 @@ public class EchoesOfOrbis extends JavaPlugin {
             if (ref == null || !ref.isValid()) return;
             Store<EntityStore> store = ref.getStore();
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
-            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
-            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+            ItemContainer armor = player.getInventory() != null ? player.getInventory().getArmor() : null;
+            double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getStaminaBonusFromArmor(armor, this.weaponEffectsService);
+            double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getHealthBonusFromArmor(armor, this.weaponEffectsService);
             double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
-            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
+            double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService)
+                    + PlayerStatModifierService.getResistMagicFromArmor(armor, this.weaponEffectsService);
             PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
             PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
             PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
             PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+            PlayerStatModifierService.updateResistProjectileFromArmor(ref, store, PlayerStatModifierService.getProjectileResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistPhysicalFromArmor(ref, store, PlayerStatModifierService.getPhysicalResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistFireFromArmor(ref, store, PlayerStatModifierService.getFireResistanceFromArmor(armor, this.weaponEffectsService));
+            PlayerStatModifierService.updateResistGeneralFromArmor(ref, store, PlayerStatModifierService.getGeneralResistanceFromArmor(armor, this.weaponEffectsService));
             RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
             entity.getStatModifiersManager().setRecalculate(true);
         });
@@ -159,14 +175,22 @@ public class EchoesOfOrbis extends JavaPlugin {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
         ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
-        double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService);
-        double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService);
+        ItemContainer armor = player.getInventory() != null ? player.getInventory().getArmor() : null;
+        double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService)
+                + PlayerStatModifierService.getStaminaBonusFromArmor(armor, this.weaponEffectsService);
+        double healthBonus = PlayerStatModifierService.getHealthBonusFromRings(bauble, this.weaponEffectsService)
+                + PlayerStatModifierService.getHealthBonusFromArmor(armor, this.weaponEffectsService);
         double healthRegenBonus = PlayerStatModifierService.getHealthRegenBonusFromRings(bauble, this.weaponEffectsService);
-        double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService);
+        double resistMagicBonus = PlayerStatModifierService.getResistMagicFromRings(bauble, this.weaponEffectsService)
+                + PlayerStatModifierService.getResistMagicFromArmor(armor, this.weaponEffectsService);
         PlayerStatModifierService.updateStaminaFromRings(ref, store, staminaBonus);
         PlayerStatModifierService.updateHealthFromRings(ref, store, healthBonus);
         PlayerStatModifierService.updateHealthRegenFromRings(ref, store, healthRegenBonus);
         PlayerStatModifierService.updateResistMagicFromRings(ref, store, resistMagicBonus);
+        PlayerStatModifierService.updateResistProjectileFromArmor(ref, store, PlayerStatModifierService.getProjectileResistanceFromArmor(armor, this.weaponEffectsService));
+        PlayerStatModifierService.updateResistPhysicalFromArmor(ref, store, PlayerStatModifierService.getPhysicalResistanceFromArmor(armor, this.weaponEffectsService));
+        PlayerStatModifierService.updateResistFireFromArmor(ref, store, PlayerStatModifierService.getFireResistanceFromArmor(armor, this.weaponEffectsService));
+        PlayerStatModifierService.updateResistGeneralFromArmor(ref, store, PlayerStatModifierService.getGeneralResistanceFromArmor(armor, this.weaponEffectsService));
         RingHealthRegenEffectApplier.applyIfHasRing(ref, store, bauble, this.weaponEffectsService);
         player.getStatModifiersManager().setRecalculate(true);
     }

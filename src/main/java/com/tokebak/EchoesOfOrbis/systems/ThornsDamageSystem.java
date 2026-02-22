@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
@@ -82,7 +83,9 @@ public final class ThornsDamageSystem extends DamageEventSystem {
         if (attackerRef.equals(targetRef)) return;
 
         var bauble = baubleContainerService.getOrCreate(victimPlayer.getPlayerRef());
-        double thornsAmount = PlayerStatModifierService.getThornsFromRings(bauble, effectsService);
+        ItemContainer armor = victimPlayer.getInventory() != null ? victimPlayer.getInventory().getArmor() : null;
+        double thornsAmount = PlayerStatModifierService.getThornsFromRings(bauble, effectsService)
+                + PlayerStatModifierService.getThornsFromArmor(armor, effectsService);
         if (thornsAmount < 0.1) return;
 
         float thornsDamageAmount = (float) thornsAmount;

@@ -194,7 +194,8 @@ public class ItemExpDamageSystem extends DamageEventSystem {
 
         // ==================== RING: SIGNATURE ENERGY + HEALTH REGEN ====================
         var bauble = this.baubleContainerService.getOrCreate(playerRef);
-        double sigBonus = PlayerStatModifierService.getSignatureEnergyBonusFromRings(bauble, this.itemExpService.getEffectsService());
+        double sigBonus = PlayerStatModifierService.getSignatureEnergyBonusFromRings(bauble, this.itemExpService.getEffectsService())
+                + PlayerStatModifierService.getSignatureEnergyBonusFromArmor(inventory.getArmor(), this.itemExpService.getEffectsService());
         if (sigBonus > 0) {
             WeaponSwapUtil.addSignatureEnergy(attackerRef, store, (float) sigBonus);
         }

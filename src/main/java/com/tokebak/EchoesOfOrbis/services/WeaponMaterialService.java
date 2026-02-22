@@ -73,12 +73,15 @@ public final class WeaponMaterialService {
     /** Number of upgrade slots for bauble rings (e.g. EOO_Ring_Crude). */
     private static final int RING_SLOTS = 3;
 
+    /** Number of upgrade slots for armor pieces. */
+    private static final int ARMOR_SLOTS = 4;
+
     /**
-     * Get the number of boost slots for a weapon or ring.
-     * Rings (tag Bauble_Ring) get RING_SLOTS; weapons use material tier.
+     * Get the number of boost slots for a weapon, ring, or armor piece.
+     * Rings (tag Bauble_Ring) get RING_SLOTS; armor gets ARMOR_SLOTS; weapons use material tier.
      *
-     * @param weapon The weapon or ring ItemStack
-     * @return Number of boost slots (2-8 for weapons, RING_SLOTS for rings)
+     * @param weapon The weapon, ring, or armor ItemStack
+     * @return Number of boost slots (2-8 for weapons, RING_SLOTS for rings, ARMOR_SLOTS for armor)
      */
     public static int getBoostSlotsForWeapon(@Nullable final ItemStack weapon) {
         if (weapon == null || weapon.isEmpty()) {
@@ -86,6 +89,9 @@ public final class WeaponMaterialService {
         }
         if (ItemTagUtil.hasTag(weapon, "Bauble_Ring")) {
             return RING_SLOTS;
+        }
+        if (weapon.getItem() != null && weapon.getItem().getArmor() != null) {
+            return ARMOR_SLOTS;
         }
         return getBoostSlotsForItemId(weapon.getItemId());
     }

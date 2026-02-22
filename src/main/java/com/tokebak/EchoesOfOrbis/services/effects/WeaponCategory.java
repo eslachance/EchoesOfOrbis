@@ -33,7 +33,12 @@ public enum WeaponCategory {
     /**
      * Bauble rings: items with tag Bauble_Ring. Use XP/upgrade system like weapons.
      */
-    RING("ring");
+    RING("ring"),
+
+    /**
+     * Armor: items in armor slots (Head, Chest, Hands, Legs). Defensive effects only.
+     */
+    ARMOR("armor");
 
     private final String id;
     
@@ -96,6 +101,20 @@ public enum WeaponCategory {
      */
     public static Set<WeaponCategory> ring() {
         return EnumSet.of(RING);
+    }
+
+    /**
+     * Get a set for armor only.
+     */
+    public static Set<WeaponCategory> armor() {
+        return EnumSet.of(ARMOR);
+    }
+
+    /**
+     * Get a set for both rings and armor (effects that can apply to either).
+     */
+    public static Set<WeaponCategory> ringAndArmor() {
+        return EnumSet.of(RING, ARMOR);
     }
 
     /**

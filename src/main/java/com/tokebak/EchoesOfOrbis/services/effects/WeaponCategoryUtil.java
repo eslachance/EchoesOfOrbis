@@ -52,6 +52,10 @@ public final class WeaponCategoryUtil {
         if (weapon != null && !weapon.isEmpty() && ItemTagUtil.hasTag(weapon, "Bauble_Ring")) {
             return WeaponCategory.RING;
         }
+        // Check if item is armor (equipped in armor slots)
+        if (weapon != null && !weapon.isEmpty() && weapon.getItem() != null && weapon.getItem().getArmor() != null) {
+            return WeaponCategory.ARMOR;
+        }
         // Then check if weapon is a magic weapon by ID
         if (weapon != null && !weapon.isEmpty()) {
             final String itemId = weapon.getItemId();
@@ -131,6 +135,8 @@ public final class WeaponCategoryUtil {
                 return "Magic";
             case RING:
                 return "Ring";
+            case ARMOR:
+                return "Armor";
             default:
                 return "Unknown";
         }
