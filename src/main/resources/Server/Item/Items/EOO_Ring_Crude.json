@@ -1,21 +1,33 @@
 {
   "TranslationProperties": {
-    "Name": "server.items.EOO_Ring_Crude.name"
+    "Name": "server.items.EOO_Crude_Ring.name",
+    "Description": "server.items.EOO_Crude_Ring.description"
   },
   "Quality": "Common",
-  "ItemLevel": 1,
+  "ItemLevel": 3,
   "MaxStack": 1,
   "Icon": "Icons/ItemsGenerated/EOO_Ring_Crude.png",
   "IconProperties": {
     "Scale": 2.3,
-    "Rotation": [28, 52, 19],
-    "Translation": [-2, -5]
+    "Rotation": [
+      28,
+      52,
+      19
+    ],
+    "Translation": [
+      -2,
+      -5
+    ]
   },
   "Model": "Items/Baubles/Ring/Item_Ring_Base.blockymodel",
   "Texture": "Items/Baubles/Ring/ringtexture3.png",
   "Tags": {
-    "Type": ["Bauble_Ring"],
-    "Family": ["Cloth_Silk"]
+    "Type": [
+      "Bauble_Ring"
+    ],
+    "Family": [
+      "Cloth_Silk"
+    ]
   },
   "MaxDurability": 120,
   "ItemSoundSetId": "ISS_Armor_Cloth",
@@ -23,9 +35,18 @@
   "CraftingRecipe": {
     "FieldcraftCategory": "Pocket",
     "Ingredients": [
-      { "ItemId": "Rubble", "Amount": 1 },
-      { "ItemId": "PlantFiber", "Amount": 1 },
-      { "ItemId": "Stick", "Amount": 1 }
+      {
+        "ItemId": "Rubble",
+        "Amount": 1
+      },
+      {
+        "ItemId": "PlantFiber",
+        "Amount": 1
+      },
+      {
+        "ItemId": "Stick",
+        "Amount": 1
+      }
     ]
   }
 }
