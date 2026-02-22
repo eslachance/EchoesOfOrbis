@@ -27,6 +27,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 
 import javax.annotation.Nonnull;
@@ -81,7 +82,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         // Get the player's inventory
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         if (playerComponent == null) {
-            uiCommandBuilder.set("#WeaponName.Text", "Error: No player");
+            uiCommandBuilder.set("#WeaponName.Text", EOOTranslations.ui("noPlayer", "Error: No player"));
             return;
         }
 
@@ -89,7 +90,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         final ItemStack weapon = this.getWeaponFromInventory(inventory);
         
         if (weapon == null) {
-            uiCommandBuilder.set("#WeaponName.Text", "Error: Weapon not found");
+            uiCommandBuilder.set("#WeaponName.Text", EOOTranslations.ui("weaponNotFound", "Error: Weapon not found"));
             return;
         }
         
@@ -100,8 +101,8 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         // Set weapon info (use translation like main menu, fallback to formatName)
         final String weaponName = this.getWeaponDisplayName(weapon);
         uiCommandBuilder.set("#WeaponName.Text", weaponName + " [Lv. " + weaponLevel + "]");
-        uiCommandBuilder.set("#Title.Text", "Choose an Upgrade");
-        uiCommandBuilder.set("#Description.Text", "Select one of 3 random options");
+        uiCommandBuilder.set("#Title.Text", EOOTranslations.ui("chooseUpgrade", "Choose an Upgrade"));
+        uiCommandBuilder.set("#Description.Text", EOOTranslations.ui("selectOneOfThree", "Select one of 3 random options"));
         
         // Get available options (use persisted if any, else generate and store)
         final ItemExpService.UpgradeOptionsResult result = this.itemExpService.getOrCreatePendingUpgradeOptions(weapon, category, 3);
@@ -306,12 +307,15 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
     }
     
     private String formatEffectName(WeaponEffectType type) {
-        return this.formatName(type.getId().replace("_", " "));
+        return EOOTranslations.effectName(type.getId(), this.formatName(type.getId().replace("_", " ")));
     }
     
     private String getEffectDescription(WeaponEffectType type) {
-        final String desc = this.itemExpService.getEffectsService().getShortDescription(type);
-        return desc != null ? desc : "A powerful weapon enhancement";
+        final String fromModule = this.itemExpService.getEffectsService().getShortDescription(type);
+        if (fromModule != null) {
+            return fromModule;
+        }
+        return EOOTranslations.effectDescription(type.getId(), EOOTranslations.ui("powerfulEnhancement", "A powerful weapon enhancement"));
     }
 
     @Override

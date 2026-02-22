@@ -1,5 +1,6 @@
 package com.tokebak.EchoesOfOrbis.services.effects;
 
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
@@ -121,24 +122,46 @@ public final class WeaponCategoryUtil {
         return false;
     }
     
+    private static final String EOO_CATEGORIES_PREFIX = "server.eoo.categories.";
+
     /**
      * Get a user-friendly display name for a category.
+     * Uses server.lang keys under eoo.categories.* (e.g. server.eoo.categories.physical).
      */
     @Nonnull
     public static String getDisplayName(@Nonnull final WeaponCategory category) {
+        final String key;
         switch (category) {
             case PHYSICAL:
-                return "Physical";
+                key = EOO_CATEGORIES_PREFIX + "physical";
+                break;
             case PROJECTILE:
-                return "Projectile";
+                key = EOO_CATEGORIES_PREFIX + "projectile";
+                break;
             case MAGIC:
-                return "Magic";
+                key = EOO_CATEGORIES_PREFIX + "magic";
+                break;
             case RING:
-                return "Ring";
+                key = EOO_CATEGORIES_PREFIX + "ring";
+                break;
             case ARMOR:
-                return "Armor";
+                key = EOO_CATEGORIES_PREFIX + "armor";
+                break;
             default:
-                return "Unknown";
+                key = EOO_CATEGORIES_PREFIX + "unknown";
+                break;
+        }
+        final String translated = Message.translation(key).getAnsiMessage();
+        if (translated != null && !translated.isEmpty() && !translated.equals(key)) {
+            return translated;
+        }
+        switch (category) {
+            case PHYSICAL: return "Physical";
+            case PROJECTILE: return "Projectile";
+            case MAGIC: return "Magic";
+            case RING: return "Ring";
+            case ARMOR: return "Armor";
+            default: return "Unknown";
         }
     }
 }

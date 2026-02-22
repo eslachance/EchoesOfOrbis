@@ -1,2 +1,97 @@
-items.EOO_Crude_Ring.name=Crude Ring
-items.EOO_Crude_Ring.description=A basic ring not worth much but still offers some protection.
+# === Echoes of Orbis – Custom items ===
+# Item names/descriptions are referenced from Item JSON TranslationProperties (server.items.<Id>.name / .description)
+
+items.EOO_Crude_Ring.name = Crude Ring
+items.EOO_Crude_Ring.description = A basic ring not worth much but still offers some protection.
+
+# === Echoes of Orbis – UI (eoo.ui) ===
+
+eoo.ui.mainTitle = Echoes of Orbis
+eoo.ui.itemExperience = Item Experience
+eoo.ui.itemsFound = {count} items found
+eoo.ui.noPlayer = Error: No player
+eoo.ui.weaponNotFound = Error: Weapon not found
+eoo.ui.levelLabel = [Lv. {level}]
+eoo.ui.categoryLabel = [{category}]
+eoo.ui.embuesAvailable = +{count} Embues
+eoo.ui.chooseUpgrade = Choose an Upgrade
+eoo.ui.selectOneOfThree = Select one of 3 random options
+eoo.ui.debugEffectsTitle = [DEBUG] Effect Editor
+eoo.ui.categoryInfo = Category: {category} | Showing applicable effects
+eoo.ui.setToLv25 = SET TO LV.25
+eoo.ui.close = CLOSE
+eoo.ui.cancel = Cancel
+eoo.ui.bauble = Bauble
+eoo.ui.baubleSlots = 3 slots — use the inventory window to move items
+eoo.ui.baubleHint = The 3-slot window can be moved; close this panel when done.
+eoo.ui.baubleButton = Bauble (3 slots)
+eoo.ui.debug = Debug
+eoo.ui.xpFormat = XP: {current} / {max} ({pct}%)
+eoo.ui.effectsNone = Effects: None
+eoo.ui.locationFormat = Location: {location}
+eoo.ui.effectNamePlaceholder = Effect Name
+eoo.ui.effectDescPlaceholder = Effect description goes here
+eoo.ui.currentValue = Current Value: {value}
+eoo.ui.chooseEmbue = Choose an Embue
+eoo.ui.selectBonusEffect = Select a bonus effect for your weapon
+eoo.ui.toggleOn = ON
+eoo.ui.toggleOff = OFF
+eoo.ui.notImplemented = Not implemented
+eoo.ui.powerfulEnhancement = A powerful weapon enhancement
+
+# === Echoes of Orbis – Weapon categories (eoo.categories) ===
+
+eoo.categories.physical = Physical
+eoo.categories.projectile = Projectile
+eoo.categories.magic = Magic
+eoo.categories.ring = Ring
+eoo.categories.armor = Armor
+eoo.categories.unknown = Unknown
+
+# === Echoes of Orbis – Notifications (eoo.notifications) ===
+
+eoo.notifications.xpGain = +{xp} XP | {itemName} | {progress}
+eoo.notifications.levelUp = LEVEL UP! {itemName} reached Level {level}!
+eoo.notifications.upgradesAvailable = {count} Upgrade(s) available! Press F to choose!
+
+# === Echoes of Orbis – Effect names & description templates (eoo.effects.<id>.name / .description) ===
+# Description templates must contain {value} for the numeric value.
+
+eoo.effects.damage_percent.name = Bonus Damage
+eoo.effects.damage_percent.description = +{value} damage
+eoo.effects.life_leech.name = Life Leech
+eoo.effects.life_leech.description = Heal {value} of damage dealt
+eoo.effects.durability_save.name = Durability Save
+eoo.effects.durability_save.description = {value} chance to save durability
+eoo.effects.fire_on_hit.name = Fire on Hit
+eoo.effects.fire_on_hit.description = {value} chance to burn on hit
+eoo.effects.poison_on_hit.name = Poison on Hit
+eoo.effects.poison_on_hit.description = {value} chance to poison on hit
+eoo.effects.slow_on_hit.name = Slow on Hit
+eoo.effects.slow_on_hit.description = {value} chance to slow on hit
+eoo.effects.freeze_on_hit.name = Freeze on Hit
+eoo.effects.freeze_on_hit.description = {value} chance to freeze on hit
+eoo.effects.multishot.name = Multishot
+eoo.effects.multishot.description = {value} chance for extra projectile
+eoo.effects.armor_projectile_resistance.name = Projectile Resistance
+eoo.effects.armor_projectile_resistance.description = +{value} projectile resistance
+eoo.effects.armor_physical_resistance.name = Physical Resistance
+eoo.effects.armor_physical_resistance.description = +{value} physical resistance
+eoo.effects.armor_fire_resistance.name = Fire Resistance
+eoo.effects.armor_fire_resistance.description = +{value} fire resistance
+eoo.effects.armor_general_resistance.name = General Resistance
+eoo.effects.armor_general_resistance.description = +{value} general resistance
+eoo.effects.ring_stamina.name = Max Stamina
+eoo.effects.ring_stamina.description = +{value} max stamina
+eoo.effects.ring_health.name = Max Health
+eoo.effects.ring_health.description = +{value} max health
+eoo.effects.ring_attack_power.name = Attack Power
+eoo.effects.ring_attack_power.description = +{value} attack power
+eoo.effects.ring_health_regen.name = Health Regen
+eoo.effects.ring_health_regen.description = +{value} health regen
+eoo.effects.ring_resist_magic.name = Resist Magic
+eoo.effects.ring_resist_magic.description = +{value} resist magic
+eoo.effects.ring_thorns.name = Thorns
+eoo.effects.ring_thorns.description = +{value} thorns damage
+eoo.effects.ring_signature_energy.name = Signature Energy
+eoo.effects.ring_signature_energy.description = +{value} signature energy per attack

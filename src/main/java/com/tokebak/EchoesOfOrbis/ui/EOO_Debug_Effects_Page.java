@@ -26,6 +26,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
+import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -80,7 +81,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
         // Get the player's inventory
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         if (playerComponent == null) {
-            uiCommandBuilder.set("#WeaponName.Text", "Error: No player");
+            uiCommandBuilder.set("#WeaponName.Text", EOOTranslations.ui("noPlayer", "Error: No player"));
             return;
         }
 
@@ -88,7 +89,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
         final ItemStack weapon = this.getWeaponFromInventory(inventory);
         
         if (weapon == null) {
-            uiCommandBuilder.set("#WeaponName.Text", "Error: Weapon not found");
+            uiCommandBuilder.set("#WeaponName.Text", EOOTranslations.ui("weaponNotFound", "Error: Weapon not found"));
             return;
         }
         
@@ -99,7 +100,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
         // Set weapon info (use translation like main menu, fallback to formatItemId)
         final String weaponName = this.getWeaponDisplayName(weapon);
         uiCommandBuilder.set("#WeaponName.Text", weaponName + " [Lv. " + weaponLevel + "]");
-        uiCommandBuilder.set("#CategoryInfo.Text", "Category: " + WeaponCategoryUtil.getDisplayName(category) + " | Showing applicable effects");
+        uiCommandBuilder.set("#CategoryInfo.Text", EOOTranslations.ui("categoryInfo", "category", WeaponCategoryUtil.getDisplayName(category), "Category: " + WeaponCategoryUtil.getDisplayName(category) + " | Showing applicable effects"));
         
         // Get all applicable effects for this weapon category
         this.applicableEffects = this.getApplicableEffects(category, effectsService);
@@ -318,12 +319,15 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
     }
     
     private String formatEffectName(WeaponEffectType type) {
-        return this.formatName(type.getId().replace("_", " "));
+        return EOOTranslations.effectName(type.getId(), this.formatName(type.getId().replace("_", " ")));
     }
     
     private String getEffectDescription(WeaponEffectType type) {
-        final String desc = this.itemExpService.getEffectsService().getShortDescription(type);
-        return desc != null ? desc : "Not implemented";
+        final String fromModule = this.itemExpService.getEffectsService().getShortDescription(type);
+        if (fromModule != null) {
+            return fromModule;
+        }
+        return EOOTranslations.effectDescription(type.getId(), EOOTranslations.ui("notImplemented", "Not implemented"));
     }
 
     @Override

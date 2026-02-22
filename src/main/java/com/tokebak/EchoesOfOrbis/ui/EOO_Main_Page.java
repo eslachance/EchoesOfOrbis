@@ -23,6 +23,7 @@ import com.tokebak.EchoesOfOrbis.services.BaubleContainerService;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
+import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -68,7 +69,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         // Get the player's inventory
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         if (playerComponent == null) {
-            uiCommandBuilder.set("#ItemCount.Text", "Error: No player");
+            uiCommandBuilder.set("#ItemCount.Text", EOOTranslations.ui("noPlayer", "Error: No player"));
             return;
         }
 
@@ -101,7 +102,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         );
 
         // Update item count
-        uiCommandBuilder.set("#ItemCount.Text", this.weaponsList.size() + " items found");
+        uiCommandBuilder.set("#ItemCount.Text", EOOTranslations.ui("itemsFound", "count", this.weaponsList.size(), this.weaponsList.size() + " items found"));
 
         // Bauble (3-slot backpack) button - bound to the button from EOO_Bauble_Button.ui
         uiEventBuilder.addEventBinding(
@@ -145,7 +146,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                 ));
                 if (weapon.pendingEmbues > 0) {
                     uiCommandBuilder.set(sel + " #EmbueButton.Visible", true);
-                    uiCommandBuilder.set(sel + " #EmbueButton.Text", "+" + weapon.pendingEmbues + " Embues");
+                    uiCommandBuilder.set(sel + " #EmbueButton.Text", EOOTranslations.ui("embuesAvailable", "count", weapon.pendingEmbues, "+" + weapon.pendingEmbues + " Embues"));
                     System.out.println("[EOO UI] Showing embue button for " + weapon.item.getItemId());
                     
                     // Register click event for the embue button
