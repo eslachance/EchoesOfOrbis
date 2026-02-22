@@ -5,14 +5,22 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.LivingEntity;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.inventory.transaction.ListTransaction;
+import com.hypixel.hytale.server.core.inventory.transaction.MoveTransaction;
+import com.hypixel.hytale.server.core.inventory.transaction.SlotTransaction;
+import com.hypixel.hytale.server.core.inventory.transaction.Transaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+import java.util.ArrayList;
+import java.util.List;
 import com.hypixel.hytale.server.core.util.Config;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
 import com.tokebak.EchoesOfOrbis.io.EooPacketHandler;
@@ -127,6 +135,7 @@ public class EchoesOfOrbis extends JavaPlugin {
         });
 
         // When any player inventory changes, refresh ring-effect stats (stamina, health)
+        // and clear pending weapon XP for hotbar slots whose item changed (fixes wrong XP bar when swapping weapons)
         this.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, event -> {
             LivingEntity entity = event.getEntity();
             if (!(entity instanceof Player)) return;
@@ -134,6 +143,16 @@ public class EchoesOfOrbis extends JavaPlugin {
             Ref<EntityStore> ref = (Ref<EntityStore>) entity.getReference();
             if (ref == null || !ref.isValid()) return;
             Store<EntityStore> store = ref.getStore();
+            ItemContainer eventContainer = event.getItemContainer();
+            ItemContainer hotbar = player.getInventory() != null ? player.getInventory().getHotbar() : null;
+            if (hotbar != null && eventContainer == hotbar) {
+                clearPendingXpForChangedHotbarSlots(this.itemExpService, player.getPlayerRef(), event.getTransaction());
+                // If the currently selected hotbar slot was modified (e.g. craft into slot, move item into slot), refresh the HUD
+                final byte activeSlot = player.getInventory().getActiveHotbarSlot();
+                if (activeSlot >= 0 && event.getTransaction().wasSlotModified((short) activeSlot)) {
+                    this.hudDisplaySystem.refreshHudForCurrentSlot(ref, store, player);
+                }
+            }
             ItemContainer bauble = this.baubleContainerService.getOrCreate(player.getPlayerRef());
             ItemContainer armor = player.getInventory() != null ? player.getInventory().getArmor() : null;
             double staminaBonus = PlayerStatModifierService.getStaminaBonusFromRings(bauble, this.weaponEffectsService)
@@ -164,6 +183,51 @@ public class EchoesOfOrbis extends JavaPlugin {
             this.hudDisplaySystem.cleanupPlayer(uuid);
             this.baubleContainerService.cleanupPlayer(uuid);
         });
+    }
+
+    /**
+     * When a hotbar slot's item is replaced by a different item, pending XP for that slot
+     * belonged to the previous item. Clear it so the HUD shows the new item's XP correctly.
+     */
+    private static void clearPendingXpForChangedHotbarSlots(
+            ItemExpService itemExpService,
+            PlayerRef playerRef,
+            Transaction transaction
+    ) {
+        for (SlotTransaction slotTx : collectSlotTransactions(transaction)) {
+            if (!slotTx.succeeded()) continue;
+            ItemStack before = slotTx.getSlotBefore();
+            ItemStack after = slotTx.getSlotAfter();
+            if (isDifferentItem(before, after)) {
+                itemExpService.clearPendingXp(playerRef, (byte) slotTx.getSlot());
+            }
+        }
+    }
+
+    private static List<SlotTransaction> collectSlotTransactions(Transaction transaction) {
+        List<SlotTransaction> out = new ArrayList<>();
+        collectSlotTransactions(transaction, out);
+        return out;
+    }
+
+    private static void collectSlotTransactions(Transaction transaction, List<SlotTransaction> out) {
+        if (transaction instanceof SlotTransaction) {
+            out.add((SlotTransaction) transaction);
+        } else if (transaction instanceof ListTransaction) {
+            for (Transaction t : ((ListTransaction<?>) transaction).getList()) {
+                collectSlotTransactions(t, out);
+            }
+        } else if (transaction instanceof MoveTransaction) {
+            MoveTransaction<?> move = (MoveTransaction<?>) transaction;
+            collectSlotTransactions(move.getRemoveTransaction(), out);
+            collectSlotTransactions(move.getAddTransaction(), out);
+        }
+    }
+
+    private static boolean isDifferentItem(ItemStack a, ItemStack b) {
+        if (ItemStack.isEmpty(a) && ItemStack.isEmpty(b)) return false;
+        if (ItemStack.isEmpty(a) || ItemStack.isEmpty(b)) return true;
+        return !java.util.Objects.equals(a.getItemId(), b.getItemId());
     }
 
     private void onBaubleContainerChanged(UUID playerUuid) {

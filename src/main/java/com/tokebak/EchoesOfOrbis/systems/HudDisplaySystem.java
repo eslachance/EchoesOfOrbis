@@ -135,8 +135,9 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
         // Get last known slot (or initialize if first time)
         final Byte lastSlotObj = this.lastActiveSlot.get(playerUuid);
         if (lastSlotObj == null) {
-            // First time seeing this player - just record their current slot
+            // First time seeing this player (e.g. just joined) - record slot and show HUD if they have a weapon equipped
             this.lastActiveSlot.put(playerUuid, currentSlot);
+            this.handleSlotChange(entityRef, store, player, inventory, currentSlot);
             return;
         }
         
@@ -234,6 +235,24 @@ public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
         return effectsSummary != null && !effectsSummary.isEmpty();
     }
     
+    /**
+     * Refresh the HUD for the player's currently selected hotbar slot.
+     * Call this when the item in the active slot changes without the slot selection changing
+     * (e.g. craft into selected slot, or move item from another inventory into selected slot).
+     */
+    public void refreshHudForCurrentSlot(
+            @Nonnull final Ref<EntityStore> entityRef,
+            @Nonnull final Store<EntityStore> store,
+            @Nonnull final Player player
+    ) {
+        final Inventory inventory = player.getInventory();
+        if (inventory == null) {
+            return;
+        }
+        final byte currentSlot = inventory.getActiveHotbarSlot();
+        this.handleSlotChange(entityRef, store, player, inventory, currentSlot);
+    }
+
     /**
      * Update the HUD for a specific player with their current weapon.
      * Call this when XP changes to refresh the display.
