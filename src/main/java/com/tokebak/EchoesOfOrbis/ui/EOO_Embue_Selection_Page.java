@@ -256,6 +256,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
             case "Hotbar" -> inventory.getHotbar();
             case "Storage" -> inventory.getStorage();
             case "Backpack" -> inventory.getBackpack();
+            case "Armor" -> inventory.getArmor();
             default -> null;
         };
     }

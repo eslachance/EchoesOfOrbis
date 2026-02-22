@@ -75,11 +75,12 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
         final Inventory inventory = playerComponent.getInventory();
         final int activeHotbarSlot = inventory.getActiveHotbarSlot();
 
-        // Collect all XP-gaining items: hotbar, storage, backpack, and bauble (rings/amulets)
+        // Collect all XP-gaining items: hotbar, storage, backpack, armor, and bauble (rings/amulets)
         this.weaponsList = new ArrayList<>();
         collectWeapons(inventory.getHotbar(), "Hotbar", this.weaponsList, activeHotbarSlot);
         collectWeapons(inventory.getStorage(), "Storage", this.weaponsList, -1);
         collectWeapons(inventory.getBackpack(), "Backpack", this.weaponsList, -1);
+        collectWeapons(inventory.getArmor(), "Armor", this.weaponsList, -1);
         // Use the ref passed to build() so we get this player's bauble container (not a stale playerRef)
         final PlayerRef playerRefForBuild = (PlayerRef) store.getComponent(ref, PlayerRef.getComponentType());
         if (playerRefForBuild != null) {
@@ -290,7 +291,9 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             
             // Determine weapon category from item ID (no damage event available here)
             this.category = WeaponCategoryUtil.determineCategory(null, item);
-            this.categoryText = WeaponCategoryUtil.getDisplayName(this.category);
+            this.categoryText = "Armor".equals(containerName)
+                    ? "Armor"
+                    : WeaponCategoryUtil.getDisplayName(this.category);
 
             // Check if at max level
             if (this.level >= itemExpService.getMaxLevel()) {
@@ -308,9 +311,15 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             final String effects = itemExpService.getEffectsService().getEffectsSummary(item);
             this.effectsText = effects.isEmpty() ? "Effects: None" : "Effects: " + effects;
 
-            this.locationText = containerName + " slot " + (slot + 1);
+            if ("Armor".equals(containerName) && slot >= 0 && slot < ARMOR_SLOT_NAMES.length) {
+                this.locationText = "Armor (" + ARMOR_SLOT_NAMES[slot] + ")";
+            } else {
+                this.locationText = containerName + " slot " + (slot + 1);
+            }
         }
     }
+
+    private static final String[] ARMOR_SLOT_NAMES = {"Head", "Chest", "Hands", "Legs"};
 
     @Override
     public void handleDataEvent(

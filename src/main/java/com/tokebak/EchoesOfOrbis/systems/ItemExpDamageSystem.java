@@ -10,9 +10,9 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
-import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.config.EchoesOfOrbisConfig;
@@ -69,6 +69,12 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     private static final long HEALTH_REGEN_APPLY_COOLDOWN_MS = 5000; // 5 sec between re-applications when dealing damage
     private final java.util.Map<String, Long> healthRegenLastApplyTime = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * Tracks last damage-taken time per player for armor XP idle flush.
+     * Key: player UUID, Value: timestamp (ms)
+     */
+    private final java.util.Map<String, Long> lastDamageTakenTime = new java.util.concurrent.ConcurrentHashMap<>();
+
     public ItemExpDamageSystem(
             @Nonnull final ItemExpService itemExpService,
             @Nonnull final EchoesOfOrbisConfig config,
@@ -122,6 +128,19 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         final Ref<EntityStore> targetRef = archetypeChunk.getReferenceTo(index);
         if (targetRef == null || !targetRef.isValid()) {
             return;
+        }
+
+        // ==================== ARMOR XP (taking damage) ====================
+        // When the target is a player, award XP to their equipped armor.
+        final Player targetPlayer = (Player) store.getComponent((Ref) targetRef, Player.getComponentType());
+        if (targetPlayer != null) {
+            final PlayerRef targetPlayerRef = (PlayerRef) store.getComponent((Ref) targetRef, PlayerRef.getComponentType());
+            if (targetPlayerRef != null) {
+                final Inventory targetInventory = targetPlayer.getInventory();
+                if (targetInventory != null) {
+                    this.awardArmorXpForDamageTaken(targetPlayerRef, targetInventory, damage.getAmount());
+                }
+            }
         }
 
         // Check if attacker is a player (not an NPC/mob)
@@ -306,6 +325,70 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             }
             final ItemStack updated = this.itemExpService.flushPendingXpForRing(stack, playerRef, slot);
             bauble.setItemStackForSlot(slot, updated);
+        }
+    }
+
+    /**
+     * Flush all armor slots' pending XP for this player into the armor container.
+     */
+    private void flushAllArmorPendingXp(@Nonnull final PlayerRef playerRef, @Nonnull final ItemContainer armor) {
+        final short capacity = armor.getCapacity();
+        for (short slot = 0; slot < capacity; slot++) {
+            final ItemStack stack = armor.getItemStack(slot);
+            if (stack == null || ItemStack.isEmpty(stack) || !this.itemExpService.canGainXp(stack)) {
+                continue;
+            }
+            final double pending = this.itemExpService.getPendingXpForArmor(playerRef, slot);
+            if (pending <= 0) {
+                continue;
+            }
+            final ItemStack updated = this.itemExpService.flushPendingXpForArmor(stack, playerRef, slot);
+            armor.setItemStackForSlot(slot, updated);
+        }
+    }
+
+    /**
+     * Award XP to the target player's equipped armor when they take damage.
+     * Uses the same combat-idle flush as weapons: flush pending armor XP when they haven't taken damage for a while.
+     */
+    private void awardArmorXpForDamageTaken(
+            @Nonnull final PlayerRef targetPlayerRef,
+            @Nonnull final Inventory targetInventory,
+            final float damageAmount
+    ) {
+        final double xpGained = this.itemExpService.calculateXpFromDamage(damageAmount);
+        if (xpGained <= 0) {
+            return;
+        }
+        final ItemContainer armor = targetInventory.getArmor();
+        final short capacity = armor.getCapacity();
+        final String targetKey = targetPlayerRef.getUuid().toString();
+        final long now = System.currentTimeMillis();
+        final Long lastTaken = this.lastDamageTakenTime.get(targetKey);
+        final boolean wasIdle = lastTaken != null && (now - lastTaken) >= COMBAT_IDLE_FLUSH_MS;
+        this.lastDamageTakenTime.put(targetKey, now);
+
+        if (wasIdle) {
+            this.flushAllArmorPendingXp(targetPlayerRef, armor);
+        }
+
+        for (short slot = 0; slot < capacity; slot++) {
+            ItemStack stack = armor.getItemStack(slot);
+            if (stack == null || ItemStack.isEmpty(stack) || !this.itemExpService.canGainXp(stack)) {
+                continue;
+            }
+            this.itemExpService.addPendingXpForArmor(targetPlayerRef, slot, xpGained);
+            final double totalXp = this.itemExpService.getTotalXpWithPendingForArmor(stack, targetPlayerRef, slot);
+            final int levelAfter = this.itemExpService.calculateLevelFromXp(totalXp);
+            final int currentLevel = this.itemExpService.getItemLevel(stack);
+            if (levelAfter > currentLevel) {
+                ItemStack updated = this.itemExpService.flushPendingXpForArmor(stack, targetPlayerRef, slot);
+                updated = this.itemExpService.updateWeaponEffects(updated, levelAfter);
+                updated = this.itemExpService.addPendingEmbues(updated, levelAfter - currentLevel);
+                updated = updated.withDurability(updated.getMaxDurability());
+                armor.setItemStackForSlot(slot, updated);
+                ItemExpNotifications.sendLevelUpNotificationWithIcon(targetPlayerRef, updated, levelAfter, this.itemExpService);
+            }
         }
     }
 

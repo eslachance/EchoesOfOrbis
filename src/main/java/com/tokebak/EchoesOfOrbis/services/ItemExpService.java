@@ -93,6 +93,13 @@ public class ItemExpService {
     public String getPendingXpKeyForRing(@Nonnull final PlayerRef playerRef, final short baubleSlot) {
         return playerRef.getUuid().toString() + ":bauble:" + baubleSlot;
     }
+
+    /**
+     * Get the cache key for pending XP on an armor slot (0 = Head, 1 = Chest, 2 = Hands, 3 = Legs).
+     */
+    public String getPendingXpKeyForArmor(@Nonnull final PlayerRef playerRef, final short armorSlot) {
+        return playerRef.getUuid().toString() + ":armor:" + armorSlot;
+    }
     
     /**
      * Get the total XP for a weapon including any pending (not yet persisted) XP.
@@ -210,7 +217,64 @@ public class ItemExpService {
         final String key = getPendingXpKeyForRing(playerRef, baubleSlot);
         this.pendingXpCache.remove(key);
     }
-    
+
+    // ==================== ARMOR XP (inventory armor container) ====================
+
+    /**
+     * Add XP to the pending cache for an armor slot (0 = Head, 1 = Chest, 2 = Hands, 3 = Legs).
+     */
+    public void addPendingXpForArmor(@Nonnull final PlayerRef playerRef, final short armorSlot, final double xp) {
+        final String key = getPendingXpKeyForArmor(playerRef, armorSlot);
+        this.pendingXpCache.merge(key, xp, Double::sum);
+    }
+
+    /**
+     * Get pending XP for an armor slot.
+     */
+    public double getPendingXpForArmor(@Nonnull final PlayerRef playerRef, final short armorSlot) {
+        final String key = getPendingXpKeyForArmor(playerRef, armorSlot);
+        final Double pending = this.pendingXpCache.get(key);
+        return pending != null ? pending : 0.0;
+    }
+
+    /**
+     * Get total XP for an armor piece (stored + pending).
+     */
+    public double getTotalXpWithPendingForArmor(
+            @Nonnull final ItemStack armorPiece,
+            @Nonnull final PlayerRef playerRef,
+            final short armorSlot
+    ) {
+        final double storedXp = this.getItemXp(armorPiece);
+        final double pendingXp = this.getPendingXpForArmor(playerRef, armorSlot);
+        return storedXp + pendingXp;
+    }
+
+    /**
+     * Flush pending XP for an armor slot into the item and return the updated stack.
+     */
+    @Nonnull
+    public ItemStack flushPendingXpForArmor(
+            @Nonnull final ItemStack armorPiece,
+            @Nonnull final PlayerRef playerRef,
+            final short armorSlot
+    ) {
+        final String key = getPendingXpKeyForArmor(playerRef, armorSlot);
+        final Double pendingXp = this.pendingXpCache.remove(key);
+        if (pendingXp == null || pendingXp <= 0) {
+            return armorPiece;
+        }
+        return this.addXpToItem(armorPiece, pendingXp);
+    }
+
+    /**
+     * Clear pending XP for an armor slot without applying it.
+     */
+    public void clearPendingXpForArmor(@Nonnull final PlayerRef playerRef, final short armorSlot) {
+        final String key = getPendingXpKeyForArmor(playerRef, armorSlot);
+        this.pendingXpCache.remove(key);
+    }
+
     /**
      * Get the effects service for external use.
      */
@@ -529,7 +593,7 @@ public class ItemExpService {
     }
 
     /**
-     * Check if an item can gain XP (weapon, tool, or bauble ring).
+     * Check if an item can gain XP (weapon, tool, armor, or bauble ring).
      * Only non-stackable items can gain XP.
      */
     public boolean canGainXp(@Nullable final ItemStack item) {
@@ -546,6 +610,11 @@ public class ItemExpService {
 
         // Allow bauble rings (tag Bauble_Ring) to gain XP and get upgrades
         if (ItemTagUtil.hasTag(item, "Bauble_Ring")) {
+            return true;
+        }
+
+        // Allow armor to gain XP (from taking damage)
+        if (itemConfig.getArmor() != null) {
             return true;
         }
 

@@ -268,6 +268,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             case "Hotbar" -> inventory.getHotbar();
             case "Storage" -> inventory.getStorage();
             case "Backpack" -> inventory.getBackpack();
+            case "Armor" -> inventory.getArmor();
             default -> null;
         };
     }
