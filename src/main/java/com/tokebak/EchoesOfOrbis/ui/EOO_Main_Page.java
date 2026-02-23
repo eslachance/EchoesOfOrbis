@@ -296,8 +296,8 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                     ? "Armor"
                     : WeaponCategoryUtil.getDisplayName(this.category);
 
-            // Check if at max level
-            if (this.level >= itemExpService.getMaxLevel()) {
+            // Check if at max level (only when a level cap is configured)
+            if (itemExpService.isAtMaxLevel(item)) {
                 this.xpText = "XP: -/- (MAX)";
             } else {
                 final double xpForCurrent = itemExpService.getXpRequiredForLevel(level);

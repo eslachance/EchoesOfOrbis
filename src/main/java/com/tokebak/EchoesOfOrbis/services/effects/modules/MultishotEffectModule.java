@@ -13,16 +13,12 @@ public class MultishotEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 0.05;
     private static final double VALUE_PER_LEVEL = 0.02;
-    private static final double MAX_VALUE = 0.25;
-    private static final int MAX_LEVEL = 10;
     private static final String DESCRIPTION_TEMPLATE = "{value} chance for extra projectile";
     private static final String SHORT_DESCRIPTION = "Chance to fire extra projectiles";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.MULTISHOT)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description(DESCRIPTION_TEMPLATE)
             .valueDisplayFormat(ValueDisplayFormat.PERCENT)
             .build();

@@ -17,15 +17,11 @@ public class HealthRingEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 25.0;
     private static final double VALUE_PER_LEVEL = 25.0;
-    private static final double MAX_VALUE = 100.0;
-    private static final int MAX_LEVEL = 4;
     private static final String SHORT_DESCRIPTION = "Bonus max health";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.RING_HEALTH)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description("+{value} max health")
             .valueDisplayFormat(ValueDisplayFormat.RAW_NUMBER)
             .build();

@@ -17,15 +17,11 @@ public class SignatureEnergyRingEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 1.0;   // +1 at level 1
     private static final double VALUE_PER_LEVEL = 1.0;
-    private static final double MAX_VALUE = 5.0;
-    private static final int MAX_LEVEL = 5;
     private static final String SHORT_DESCRIPTION = "Signature energy boost (+1 per level per attack)";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.RING_SIGNATURE_ENERGY)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description("+{value} signature energy per attack")
             .valueDisplayFormat(ValueDisplayFormat.RAW_NUMBER)
             .build();

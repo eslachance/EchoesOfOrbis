@@ -13,16 +13,12 @@ public class FreezeOnHitEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 0.02;
     private static final double VALUE_PER_LEVEL = 0.01;
-    private static final double MAX_VALUE = 0.12;
-    private static final int MAX_LEVEL = 10;
     private static final String DESCRIPTION_TEMPLATE = "{value} chance to freeze on hit";
     private static final String SHORT_DESCRIPTION = "Chance to freeze enemies in place";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.FREEZE_ON_HIT)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description(DESCRIPTION_TEMPLATE)
             .valueDisplayFormat(ValueDisplayFormat.PERCENT)
             .build();

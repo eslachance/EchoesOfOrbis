@@ -57,7 +57,12 @@ public final class PlayerStatModifierService {
             List<WeaponEffectInstance> effects = effectsService.getEffects(stack);
             for (WeaponEffectInstance inst : effects) {
                 if (inst != null && inst.getType() == effectType) {
-                    total += def.calculateValue(inst.getLevel());
+                    // Health regen is the only effect with a cap (T3); clamp level for value
+                    int level = inst.getLevel();
+                    if (effectType == WeaponEffectType.RING_HEALTH_REGEN) {
+                        level = Math.min(3, level);
+                    }
+                    total += def.calculateValue(level);
                 }
             }
         }

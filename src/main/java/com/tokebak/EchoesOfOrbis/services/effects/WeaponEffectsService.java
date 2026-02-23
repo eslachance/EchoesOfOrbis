@@ -488,7 +488,8 @@ public class WeaponEffectsService {
                 continue;
             }
             final int level = effect.getLevel();
-            if (level >= def.getMaxLevel()) {
+            // Only health regen has a cap (T1/T2/T3); no other effects are capped
+            if (type == WeaponEffectType.RING_HEALTH_REGEN && level >= 3) {
                 continue;
             }
             pool.add(new UpgradeOption.BoostOption(type, level));
@@ -556,8 +557,12 @@ public class WeaponEffectsService {
                 if (sb.length() > 0) {
                     sb.append(", ");
                 }
-                sb.append(def.getFormattedDescription(effect.getLevel()));
-                if (effect.getLevel() >= def.getMaxLevel()) {
+                // Health regen is the only effect with a cap (T3); clamp display level and show (MAX)
+                final int displayLevel = effect.getType() == WeaponEffectType.RING_HEALTH_REGEN
+                        ? Math.min(3, effect.getLevel())
+                        : effect.getLevel();
+                sb.append(def.getFormattedDescription(displayLevel));
+                if (effect.getType() == WeaponEffectType.RING_HEALTH_REGEN && effect.getLevel() >= 3) {
                     sb.append(" (MAX)");
                 }
             }

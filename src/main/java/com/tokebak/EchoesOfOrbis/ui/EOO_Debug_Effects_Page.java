@@ -24,6 +24,7 @@ import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
@@ -105,11 +106,12 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
         // Get all applicable effects for this weapon category
         this.applicableEffects = this.getApplicableEffects(category, effectsService);
         
-        // Add a row for each applicable effect
+        // Add a row for each applicable effect (Add or Upgrade, like upgrade selection window)
         for (int i = 0; i < this.applicableEffects.size(); i++) {
             final WeaponEffectType effectType = this.applicableEffects.get(i);
             final WeaponEffectDefinition definition = effectsService.getDefinition(effectType);
-            final boolean isEnabled = effectsService.hasEffect(weapon, effectType);
+            final boolean hasEffect = effectsService.hasEffect(weapon, effectType);
+            final int effectLevel = hasEffect ? effectsService.getEffect(weapon, effectType).getLevel() : 0;
             
             // Append the effect row template
             uiCommandBuilder.append("#EffectsList", "EOO_Debug_Effect_Row.ui");
@@ -119,42 +121,25 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             
             // Build effect name with value if enabled
             String effectName = this.formatEffectName(effectType);
-            if (isEnabled && definition != null) {
-                final int effectLevel = Math.max(1, weaponLevel - 1);
+            if (hasEffect && definition != null) {
                 effectName += " (" + definition.getFormattedDescription(effectLevel) + ")";
             }
             
             uiCommandBuilder.set(sel + " #EffectName.Text", effectName);
             uiCommandBuilder.set(sel + " #EffectDesc.Text", this.getEffectDescription(effectType));
             
-            // Set toggle button visibility based on state (show ON or OFF button)
-            if (isEnabled) {
-                uiCommandBuilder.set(sel + " #ToggleOn.Visible", true);
-                uiCommandBuilder.set(sel + " #ToggleOff.Visible", false);
-            } else {
-                uiCommandBuilder.set(sel + " #ToggleOn.Visible", false);
-                uiCommandBuilder.set(sel + " #ToggleOff.Visible", true);
-            }
+            // Button label: "Add" or "Upgrade (Lv.N)"
+            final String buttonText = hasEffect ? ("Upgrade (Lv." + effectLevel + ")") : "Add";
+            uiCommandBuilder.set(sel + " #AddUpgradeButton.Text", buttonText);
             
-            // Register click events for both toggle buttons
+            // Register click: Add or Upgrade with index
+            final String action = hasEffect ? "Upgrade" : "Add";
             uiEventBuilder.addEventBinding(
                     CustomUIEventBindingType.Activating,
-                    sel + " #ToggleOn",
-                    EventData.of("Toggle", String.valueOf(i))
-            );
-            uiEventBuilder.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    sel + " #ToggleOff",
-                    EventData.of("Toggle", String.valueOf(i))
+                    sel + " #AddUpgradeButton",
+                    EventData.of("EffectAction", action + ":" + i)
             );
         }
-        
-        // Max level button
-        uiEventBuilder.addEventBinding(
-                CustomUIEventBindingType.Activating,
-                "#MaxLevelButton",
-                EventData.of("MaxLevel", "true")
-        );
         
         // Close button
         uiEventBuilder.addEventBinding(
@@ -192,46 +177,49 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
     }
     
     /**
-     * Toggle an effect on or off.
-     * Returns true if the toggle was successful.
+     * Add or upgrade an effect (like the upgrade selection window).
+     * Brings the item up by one level and sets XP so it's as if the player had upgraded naturally.
+     * Returns true if successful.
      */
-    private boolean toggleEffect(int effectIndex, Ref<EntityStore> ref, Store<EntityStore> store) {
+    private boolean addOrUpgradeEffect(int effectIndex, Ref<EntityStore> ref, Store<EntityStore> store) {
         if (this.applicableEffects == null || effectIndex < 0 || effectIndex >= this.applicableEffects.size()) {
             return false;
         }
-        
+
         final WeaponEffectType effectType = this.applicableEffects.get(effectIndex);
-        
-        // Get the player's inventory
+
         final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         if (playerComponent == null) {
             return false;
         }
-        
+
         final Inventory inventory = playerComponent.getInventory();
         ItemStack weapon = this.getWeaponFromInventory(inventory);
-        
         if (weapon == null) {
             return false;
         }
-        
+
         final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
-        final boolean currentlyEnabled = effectsService.hasEffect(weapon, effectType);
-        
-        if (currentlyEnabled) {
-            // Remove the effect
-            weapon = effectsService.removeEffect(weapon, effectType);
-            System.out.println("[DEBUG] Disabled effect: " + effectType.getId() + " on " + weapon.getItemId());
+        final boolean hasEffect = effectsService.hasEffect(weapon, effectType);
+        final int currentItemLevel = this.itemExpService.getItemLevel(weapon);
+        final int newLevel = currentItemLevel + 1;
+
+        if (hasEffect) {
+            final WeaponEffectInstance existing = effectsService.getEffect(weapon, effectType);
+            if (existing != null) {
+                weapon = effectsService.setEffect(weapon, new WeaponEffectInstance(effectType, existing.getLevel() + 1));
+            }
         } else {
-            // Add the effect at current weapon level
-            final int weaponLevel = this.itemExpService.getItemLevel(weapon);
-            weapon = effectsService.updateEffectForLevel(weapon, effectType, weaponLevel);
-            System.out.println("[DEBUG] Enabled effect: " + effectType.getId() + " at level " + weaponLevel + " on " + weapon.getItemId());
+            weapon = this.itemExpService.unlockEffect(weapon, effectType);
+            weapon = effectsService.setEffect(weapon, new WeaponEffectInstance(effectType, 1));
         }
-        
-        // Update the weapon in inventory
+
+        // Set XP to the threshold for new level (as if player had leveled naturally)
+        final double xpForNewLevel = this.itemExpService.getXpRequiredForLevel(newLevel);
+        weapon = weapon.withMetadata(ItemExpService.META_KEY_XP, com.hypixel.hytale.codec.Codec.DOUBLE, xpForNewLevel);
+
         this.setWeaponInInventory(inventory, weapon);
-        
+        System.out.println("[DEBUG] " + (hasEffect ? "Upgraded" : "Added") + " effect " + effectType.getId() + " -> item level " + newLevel + " (XP: " + xpForNewLevel + ")");
         return true;
     }
     
@@ -336,10 +324,6 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             @Nonnull Store<EntityStore> store,
             Data data
     ) {
-        // Debug logging
-        System.out.println("[DEBUG] handleDataEvent called - toggle: " + data.toggle + ", close: " + data.close + ", maxLevel: " + data.maxLevel);
-        
-        // Handle close
         if ("true".equals(data.close)) {
             final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
             if (playerComponent != null) {
@@ -347,79 +331,38 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
             }
             return;
         }
-        
-        // Handle max level
-        if ("true".equals(data.maxLevel)) {
-            this.setWeaponToMaxLevel(ref, store);
-        }
-        
-        // Handle toggle
-        if (data.toggle != null) {
-            try {
-                final int effectIndex = Integer.parseInt(data.toggle);
-                this.toggleEffect(effectIndex, ref, store);
-            } catch (NumberFormatException ignored) {
-                // Invalid effect index
+
+        // EffectAction: "Add:0" or "Upgrade:1"
+        if (data.effectAction != null) {
+            final String[] parts = data.effectAction.split(":", 2);
+            if (parts.length == 2) {
+                try {
+                    final int effectIndex = Integer.parseInt(parts[1]);
+                    this.addOrUpgradeEffect(effectIndex, ref, store);
+                } catch (NumberFormatException ignored) {
+                    // Invalid index
+                }
             }
         }
-        
-        // Rebuild the entire UI to reflect changes
+
         this.rebuild();
-    }
-    
-    /**
-     * Set the weapon to max level (25) by setting its XP.
-     */
-    private void setWeaponToMaxLevel(Ref<EntityStore> ref, Store<EntityStore> store) {
-        final Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
-        if (playerComponent == null) {
-            return;
-        }
-        
-        final Inventory inventory = playerComponent.getInventory();
-        ItemStack weapon = this.getWeaponFromInventory(inventory);
-        
-        if (weapon == null) {
-            return;
-        }
-        
-        // Get XP required for level 25 and set it
-        final double xpForMaxLevel = this.itemExpService.getXpRequiredForLevel(25);
-        weapon = weapon.withMetadata(ItemExpService.META_KEY_XP, com.hypixel.hytale.codec.Codec.DOUBLE, xpForMaxLevel);
-        
-        // Also update all enabled effects to max level
-        final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
-        for (final WeaponEffectType effectType : WeaponEffectType.values()) {
-            if (effectsService.hasEffect(weapon, effectType)) {
-                weapon = effectsService.updateEffectForLevel(weapon, effectType, 25);
-            }
-        }
-        
-        this.setWeaponInInventory(inventory, weapon);
-        System.out.println("[DEBUG] Set weapon to max level (25) with XP: " + xpForMaxLevel);
     }
 
     public static class Data {
-        public String toggle;
         public String close;
-        public String maxLevel;
-        
+        public String effectAction;
+
         public static final BuilderCodec<Data> CODEC = BuilderCodec
                 .builder(Data.class, Data::new)
-                .append(
-                        new KeyedCodec<>("Toggle", Codec.STRING),
-                        (d, v) -> d.toggle = v,
-                        d -> d.toggle
-                ).add()
                 .append(
                         new KeyedCodec<>("Close", Codec.STRING),
                         (d, v) -> d.close = v,
                         d -> d.close
                 ).add()
                 .append(
-                        new KeyedCodec<>("MaxLevel", Codec.STRING),
-                        (d, v) -> d.maxLevel = v,
-                        d -> d.maxLevel
+                        new KeyedCodec<>("EffectAction", Codec.STRING),
+                        (d, v) -> d.effectAction = v,
+                        d -> d.effectAction
                 ).add()
                 .build();
     }

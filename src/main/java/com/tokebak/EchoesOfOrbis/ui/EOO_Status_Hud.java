@@ -61,10 +61,9 @@ public class EOO_Status_Hud extends CustomUIHud {
         final int level = itemExpService.getItemLevel(weapon);
         // Include pending XP in the total (XP gained but not yet flushed)
         final double totalXp = itemExpService.getTotalXpWithPending(weapon, this.getPlayerRef(), slot);
-        final int maxLevel = itemExpService.getMaxLevel();
-        
-        // Check if at max level
-        if (level >= maxLevel) {
+
+        // Check if at max level (only when a level cap is configured)
+        if (itemExpService.isAtMaxLevel(weapon)) {
             this.currentXpText = "MAX LEVEL";
             this.currentBarWidth = BAR_MAX_WIDTH;
             this.updateDisplay();

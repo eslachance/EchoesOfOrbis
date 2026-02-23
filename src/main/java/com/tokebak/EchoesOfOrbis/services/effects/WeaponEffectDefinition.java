@@ -23,17 +23,7 @@ public class WeaponEffectDefinition {
      * Total value = baseValue + (effectLevel - 1) * valuePerLevel
      */
     private final double valuePerLevel;
-    
-    /**
-     * Maximum value this effect can reach (0 = no cap).
-     */
-    private final double maxValue;
-    
-    /**
-     * Maximum level this effect can be upgraded to.
-     */
-    private final int maxLevel;
-    
+
     /**
      * For proc effects: chance to trigger (0.0 to 1.0).
      */
@@ -59,8 +49,6 @@ public class WeaponEffectDefinition {
         this.type = builder.type;
         this.baseValue = builder.baseValue;
         this.valuePerLevel = builder.valuePerLevel;
-        this.maxValue = builder.maxValue;
-        this.maxLevel = builder.maxLevel;
         this.procChance = builder.procChance;
         this.duration = builder.duration;
         this.description = builder.description;
@@ -76,14 +64,7 @@ public class WeaponEffectDefinition {
         if (effectLevel < 1) {
             return 0.0;
         }
-        
-        double value = this.baseValue + (effectLevel - 1) * this.valuePerLevel;
-        
-        if (this.maxValue > 0 && value > this.maxValue) {
-            value = this.maxValue;
-        }
-        
-        return value;
+        return this.baseValue + (effectLevel - 1) * this.valuePerLevel;
     }
     
     /**
@@ -110,15 +91,7 @@ public class WeaponEffectDefinition {
     public double getValuePerLevel() {
         return this.valuePerLevel;
     }
-    
-    public double getMaxValue() {
-        return this.maxValue;
-    }
-    
-    public int getMaxLevel() {
-        return this.maxLevel;
-    }
-    
+
     public double getProcChance() {
         return this.procChance;
     }
@@ -153,8 +126,6 @@ public class WeaponEffectDefinition {
         private final WeaponEffectType type;
         private double baseValue = 0.0;
         private double valuePerLevel = 0.0;
-        private double maxValue = 0.0;
-        private int maxLevel = 10;
         private double procChance = 1.0;
         private double duration = 0.0;
         private String description = "";
@@ -173,17 +144,7 @@ public class WeaponEffectDefinition {
             this.valuePerLevel = valuePerLevel;
             return this;
         }
-        
-        public Builder maxValue(final double maxValue) {
-            this.maxValue = maxValue;
-            return this;
-        }
-        
-        public Builder maxLevel(final int maxLevel) {
-            this.maxLevel = maxLevel;
-            return this;
-        }
-        
+
         public Builder procChance(final double procChance) {
             this.procChance = procChance;
             return this;

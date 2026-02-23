@@ -13,16 +13,12 @@ public class DurabilitySaveEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 0.05;
     private static final double VALUE_PER_LEVEL = 0.05;
-    private static final double MAX_VALUE = 0.50;
-    private static final int MAX_LEVEL = 10;
     private static final String DESCRIPTION_TEMPLATE = "{value} chance to save durability";
     private static final String SHORT_DESCRIPTION = "Chance to not lose durability when hitting";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.DURABILITY_SAVE)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description(DESCRIPTION_TEMPLATE)
             .valueDisplayFormat(ValueDisplayFormat.PERCENT)
             .build();

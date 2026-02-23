@@ -131,7 +131,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         }
 
         // ==================== ARMOR XP (taking damage) ====================
-        // When the target is a player, award XP to their equipped armor.
+        // When the target is a player, award XP to their equipped armor and rings.
         final Player targetPlayer = (Player) store.getComponent((Ref) targetRef, Player.getComponentType());
         if (targetPlayer != null) {
             final PlayerRef targetPlayerRef = (PlayerRef) store.getComponent((Ref) targetRef, PlayerRef.getComponentType());
@@ -139,6 +139,7 @@ public class ItemExpDamageSystem extends DamageEventSystem {
                 final Inventory targetInventory = targetPlayer.getInventory();
                 if (targetInventory != null) {
                     this.awardArmorXpForDamageTaken(targetPlayerRef, targetInventory, damage.getAmount());
+                    this.awardRingXpForDamageTaken(targetPlayerRef, targetInventory, damage.getAmount());
                 }
             }
         }
@@ -242,9 +243,6 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         
         // Cache the XP
         this.itemExpService.addPendingXp(playerRef, activeSlot, xpGained);
-
-        // Award same XP to each equipped ring (per-hit, same as weapon)
-        this.awardRingXpAndFlushLevelUps(playerRef, xpGained);
 
         // Update the HUD to show the new pending XP (even though not flushed yet)
         this.hudDisplaySystem.updateHudForPlayer(playerRef, weapon, activeSlot);
@@ -394,29 +392,46 @@ public class ItemExpDamageSystem extends DamageEventSystem {
     }
 
     /**
-     * Award XP to each equipped ring and flush immediately if a ring levels up.
+     * Award XP to the target player's equipped rings when they take damage.
+     * Uses the same combat-idle flush as armor: flush pending ring XP when they haven't taken damage for a while.
      */
-    private void awardRingXpAndFlushLevelUps(@Nonnull final PlayerRef playerRef, final double xpGained) {
-        if (xpGained <= 0) return;
-        final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRef);
+    private void awardRingXpForDamageTaken(
+            @Nonnull final PlayerRef targetPlayerRef,
+            @Nonnull final Inventory targetInventory,
+            final float damageAmount
+    ) {
+        final double xpGained = this.itemExpService.calculateXpFromDamage(damageAmount);
+        if (xpGained <= 0) {
+            return;
+        }
+        final ItemContainer bauble = this.baubleContainerService.getOrCreate(targetPlayerRef);
         final short capacity = bauble.getCapacity();
+        final String targetKey = targetPlayerRef.getUuid().toString();
+        final long now = System.currentTimeMillis();
+        final Long lastTaken = this.lastDamageTakenTime.get(targetKey);
+        final boolean wasIdle = lastTaken != null && (now - lastTaken) >= COMBAT_IDLE_FLUSH_MS;
+        this.lastDamageTakenTime.put(targetKey, now);
+
+        if (wasIdle) {
+            this.flushAllRingsPendingXp(targetPlayerRef);
+        }
+
         for (short slot = 0; slot < capacity; slot++) {
             ItemStack stack = bauble.getItemStack(slot);
             if (stack == null || ItemStack.isEmpty(stack) || !this.itemExpService.canGainXp(stack)) {
                 continue;
             }
-            this.itemExpService.addPendingXpForRing(playerRef, slot, xpGained);
-            final double totalXp = this.itemExpService.getTotalXpWithPendingForRing(stack, playerRef, slot);
+            this.itemExpService.addPendingXpForRing(targetPlayerRef, slot, xpGained);
+            final double totalXp = this.itemExpService.getTotalXpWithPendingForRing(stack, targetPlayerRef, slot);
             final int levelAfter = this.itemExpService.calculateLevelFromXp(totalXp);
             final int currentLevel = this.itemExpService.getItemLevel(stack);
             if (levelAfter > currentLevel) {
-                // Ring level up: flush pending, add embues, restore durability, write back
-                ItemStack updated = this.itemExpService.flushPendingXpForRing(stack, playerRef, slot);
+                ItemStack updated = this.itemExpService.flushPendingXpForRing(stack, targetPlayerRef, slot);
                 updated = this.itemExpService.updateWeaponEffects(updated, levelAfter);
                 updated = this.itemExpService.addPendingEmbues(updated, levelAfter - currentLevel);
                 updated = updated.withDurability(updated.getMaxDurability());
                 bauble.setItemStackForSlot(slot, updated);
-                ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, updated, levelAfter, this.itemExpService);
+                ItemExpNotifications.sendLevelUpNotificationWithIcon(targetPlayerRef, updated, levelAfter, this.itemExpService);
             }
         }
     }

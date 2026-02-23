@@ -13,16 +13,12 @@ public class LifeLeechEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 0.01;
     private static final double VALUE_PER_LEVEL = 0.01;
-    private static final double MAX_VALUE = 0.15;
-    private static final int MAX_LEVEL = 10;
     private static final String DESCRIPTION_TEMPLATE = "Heal {value} of damage dealt";
     private static final String SHORT_DESCRIPTION = "Heal for a portion of damage dealt";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.LIFE_LEECH)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description(DESCRIPTION_TEMPLATE)
             .valueDisplayFormat(ValueDisplayFormat.PERCENT)
             .build();

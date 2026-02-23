@@ -56,7 +56,6 @@ Set from Java or used as reference for UI. Where the UI is built in code, we pas
 | eoo.ui.selectOneOfThree | Select one of 3 random options |
 | eoo.ui.debugEffectsTitle | [DEBUG] Effect Editor |
 | eoo.ui.categoryInfo | Category: {category} \| Showing applicable effects |
-| eoo.ui.setToLv25 | SET TO LV.25 |
 | eoo.ui.close | CLOSE |
 | eoo.ui.cancel | Cancel |
 | eoo.ui.bauble | Bauble |

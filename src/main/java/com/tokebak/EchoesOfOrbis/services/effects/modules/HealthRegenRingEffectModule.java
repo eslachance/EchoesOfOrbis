@@ -17,16 +17,12 @@ import javax.annotation.Nonnull;
 public class HealthRegenRingEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 1.0;   // T1
-    private static final double VALUE_PER_LEVEL = 0.5; // T2 = 1.5, T3 = 2.0
-    private static final double MAX_VALUE = 2.0;    // T3 matches food Health Regen III
-    private static final int MAX_LEVEL = 3;        // T1, T2, T3 only
+    private static final double VALUE_PER_LEVEL = 0.5; // T2 = 1.5, T3 = 2.0 (cap at T3 is enforced in WeaponEffectsService / PlayerStatModifierService)
     private static final String SHORT_DESCRIPTION = "Health regen I";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.RING_HEALTH_REGEN)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description("+{value} health regen")
             .valueDisplayFormat(ValueDisplayFormat.RAW_NUMBER)
             .build();

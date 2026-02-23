@@ -16,16 +16,12 @@ public class DamagePercentEffectModule implements EffectModule {
 
     private static final double BASE_VALUE = 0.03;       // 3% at effect level 1
     private static final double VALUE_PER_LEVEL = 0.02;  // +2% per boost
-    private static final double MAX_VALUE = 0.25;        // Cap at 25%
-    private static final int MAX_LEVEL = 10;
     private static final String DESCRIPTION_TEMPLATE = "+{value} damage";
     private static final String SHORT_DESCRIPTION = "Bonus damage as percentage of hit";
 
     private final WeaponEffectDefinition definition = WeaponEffectDefinition.builder(WeaponEffectType.DAMAGE_PERCENT)
             .baseValue(BASE_VALUE)
             .valuePerLevel(VALUE_PER_LEVEL)
-            .maxValue(MAX_VALUE)
-            .maxLevel(MAX_LEVEL)
             .description(DESCRIPTION_TEMPLATE)
             .valueDisplayFormat(ValueDisplayFormat.PERCENT)
             .build();

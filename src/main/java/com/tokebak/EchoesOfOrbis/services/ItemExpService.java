@@ -506,18 +506,21 @@ public class ItemExpService {
         return this.calculateLevelFromXp(xp);
     }
 
+    /** Upper bound for level when there is no config cap (used in binary search). */
+    private static final int NO_CAP_LEVEL_BOUND = 9999;
+
     /**
      * Calculate what level corresponds to a given amount of XP.
      * Inverse of getXpRequiredForLevel.
      */
     public int calculateLevelFromXp(final double totalXp) {
         if (totalXp <= 0) return 1;
-        final int maxLevel = this.config.getMaxLevel();
-        if (totalXp >= this.getXpRequiredForLevel(maxLevel)) return maxLevel;
+        final int cap = this.getEffectiveMaxLevel();
+        if (totalXp >= this.getXpRequiredForLevel(cap)) return cap;
 
         // Binary search: find lowest level L where getXpRequiredForLevel(L+1) > totalXp
         int lo = 1;
-        int hi = maxLevel;
+        int hi = cap;
         while (lo < hi) {
             final int mid = (lo + hi + 1) >>> 1;
             if (this.getXpRequiredForLevel(mid) <= totalXp) {
@@ -557,17 +560,24 @@ public class ItemExpService {
     }
 
     /**
-     * Get the maximum level a weapon can reach.
+     * Get the effective maximum level (config value, or NO_CAP_LEVEL_BOUND when no cap).
      */
     public int getMaxLevel() {
-        return this.config.getMaxLevel();
+        return this.getEffectiveMaxLevel();
     }
-    
+
+    private int getEffectiveMaxLevel() {
+        final int cfg = this.config.getMaxLevel();
+        return cfg > 0 ? cfg : NO_CAP_LEVEL_BOUND;
+    }
+
     /**
-     * Check if a weapon is at max level.
+     * Check if a weapon is at max level. Always false when there is no level cap.
      */
     public boolean isAtMaxLevel(@Nonnull final ItemStack item) {
-        return this.getItemLevel(item) >= this.config.getMaxLevel();
+        final int cap = this.config.getMaxLevel();
+        if (cap <= 0) return false;
+        return this.getItemLevel(item) >= cap;
     }
 
     /**
@@ -631,7 +641,7 @@ public class ItemExpService {
         final double xp = this.getItemXp(item);
         final int level = this.calculateLevelFromXp(xp);
 
-        if (level >= this.config.getMaxLevel()) {
+        if (this.isAtMaxLevel(item)) {
             return String.format("Level %d (MAX)", level);
         }
 
