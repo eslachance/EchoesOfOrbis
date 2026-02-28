@@ -29,7 +29,16 @@ public final class WeaponCategoryUtil {
     };
     
     private WeaponCategoryUtil() {
-        // Utility class
+    }
+
+    /**
+     * Check whether an item should be treated as a tool for XP/effect purposes.
+     * Returns true if the item has a {@code Tool} config OR is tagged "Tool" in its item JSON
+     * (e.g. sickles use a Weapon config but are tagged "Tool").
+     */
+    public static boolean isTool(@Nullable final ItemStack weapon) {
+        if (weapon == null || weapon.isEmpty() || weapon.getItem() == null) return false;
+        return weapon.getItem().getTool() != null || ItemTagUtil.hasTag(weapon, "Tool");
     }
     
     /**

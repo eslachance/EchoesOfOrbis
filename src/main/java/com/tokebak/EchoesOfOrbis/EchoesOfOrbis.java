@@ -36,7 +36,9 @@ import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.PlayerAttackPowerDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.ThornsDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.ToolBreakBlockEventSystem;
+import com.tokebak.EchoesOfOrbis.systems.ToolDamageBlockEventSystem;
 import com.tokebak.EchoesOfOrbis.systems.ToolEntityInteractHandler;
+import com.tokebak.EchoesOfOrbis.systems.ToolUseBlockEventSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.util.Map;
@@ -92,6 +94,10 @@ public class EchoesOfOrbis extends JavaPlugin {
                 .register(com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.ID,
                         com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.class,
                         com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.CODEC);
+        this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
+                .register(com.tokebak.EchoesOfOrbis.interactions.EOO_SicklePreHarvestInteraction.ID,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_SicklePreHarvestInteraction.class,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_SicklePreHarvestInteraction.CODEC);
 
         // Register the HUD display system that shows/hides the status HUD based on active weapon
         // Must be registered BEFORE ItemExpDamageSystem so it can receive XP update notifications
@@ -118,6 +124,16 @@ public class EchoesOfOrbis extends JavaPlugin {
         // Tool break: durability save, XP, and drop bonus for pickaxe/shovel/axe
         this.getEntityStoreRegistry().registerSystem(
                 new ToolBreakBlockEventSystem(this.itemExpService, this.weaponEffectsService, this.hudDisplaySystem)
+        );
+
+        // Tool use-block: XP and drop bonus when pressing F on harvestable blocks (e.g. sickle on berry bush)
+        this.getEntityStoreRegistry().registerSystem(
+                new ToolUseBlockEventSystem(this.itemExpService, this.weaponEffectsService, this.hudDisplaySystem)
+        );
+
+        // Tool damage-block: XP when left-click harvests a block (final hit on harvestable crops)
+        this.getEntityStoreRegistry().registerSystem(
+                new ToolDamageBlockEventSystem(this.itemExpService, this.hudDisplaySystem)
         );
 
         // Tool on entity (e.g. shears on sheep): try both events to see which fires on left-click entity

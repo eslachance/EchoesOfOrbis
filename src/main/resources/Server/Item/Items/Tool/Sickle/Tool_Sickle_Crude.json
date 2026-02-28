@@ -1,0 +1,218 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Sickle_Crude.name",
+    "Description": "server.items.Tool_Sickle.description"
+  },
+  "Categories": [
+    "Items.Tools"
+  ],
+  "Set": "Tool_Stone",
+  "PlayerAnimationsId": "Sickle",
+  "Model": "Items/Tools/Sickle/Crude.blockymodel",
+  "Texture": "Items/Tools/Sickle/Crude_Texture.png",
+  "Icon": "Icons/ItemsGenerated/Tool_Sickle_Crude.png",
+  "Quality": "Common",
+  "ItemLevel": 5,
+  "Recipe": {
+    "TimeSeconds": 1.5,
+    "Input": [
+      {
+        "ResourceTypeId": "Wood_Trunk",
+        "Quantity": 2
+      },
+      {
+        "ResourceTypeId": "Rock",
+        "Quantity": 1
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": [
+          "Farming"
+        ],
+        "Id": "Farmingbench",
+        "RequiredTierLevel": 2
+      }
+    ]
+  },
+  "Utility": {
+    "Compatible": true
+  },
+  "Weapon": {},
+  "Interactions": {
+    "Primary": "Sickle_Attack"
+  },
+  "InteractionVars": {
+    "Swing_Left_Effect": {
+      "Interactions": [
+        {
+          "Parent": "Sickle_Swing_Left_Effect",
+          "WorldSoundEventId": "SFX_Light_Melee_T2_Swing"
+        }
+      ]
+    },
+    "Swing_Left_Damage": {
+      "Interactions": [
+        {
+          "Parent": "Sickle_Swing_Left_Damage",
+          "DamageEffects": {
+            "WorldSoundEventId": "SFX_Sword_T2_Impact"
+          }
+        }
+      ]
+    },
+    "Swing_Left_Selector": {
+      "Interactions": [
+        {
+          "Type": "Selector",
+          "RunTime": 0.2,
+          "Selector": {
+            "Id": "Horizontal",
+            "Direction": "ToLeft",
+            "TestLineOfSight": true,
+            "ExtendTop": 0.1,
+            "ExtendBottom": 2,
+            "StartDistance": 0.1,
+            "EndDistance": 2.5,
+            "Length": 70,
+            "RollOffset": 0,
+            "YawStartOffset": -20
+          },
+          "HitBlock": {
+            "Interactions": [
+              {
+                "Type": "EOO_SicklePreHarvest",
+                "Next": {
+                  "Type": "HarvestCrop",
+                  "RequireNotBroken": true,
+                  "Next": {
+                    "Type": "EOO_SickleCropXp",
+                    "Next": {
+                      "Type": "ModifyInventory",
+                      "AdjustHeldItemDurability": -1
+                    }
+                  },
+                  "Failed": "Block_Break_Adventure"
+                }
+              }
+            ]
+          },
+          "HitEntity": {
+            "Interactions": [
+              {
+                "Type": "Replace",
+                "DefaultOk": true,
+                "DefaultValue": {
+                  "Interactions": [
+                    "Sickle_Swing_Left_Damage"
+                  ]
+                },
+                "Var": "Swing_Left_Damage"
+              }
+            ]
+          },
+          "Next": {
+            "Type": "Simple",
+            "RunTime": 0.2
+          }
+        }
+      ]
+    },
+    "Swing_Right_Effect": {
+      "Interactions": [
+        {
+          "Parent": "Sickle_Swing_Right_Effect",
+          "WorldSoundEventId": "SFX_Light_Melee_T2_Swing"
+        }
+      ]
+    },
+    "Swing_Right_Damage": {
+      "Interactions": [
+        {
+          "Parent": "Sickle_Swing_Right_Damage",
+          "DamageEffects": {
+            "WorldSoundEventId": "SFX_Sword_T2_Impact"
+          }
+        }
+      ]
+    },
+    "Swing_Right_Selector": {
+      "Interactions": [
+        {
+          "Type": "Selector",
+          "RunTime": 0.2,
+          "Selector": {
+            "Id": "Horizontal",
+            "Direction": "ToRight",
+            "TestLineOfSight": true,
+            "ExtendTop": 0.1,
+            "ExtendBottom": 2,
+            "StartDistance": 0.1,
+            "EndDistance": 2.5,
+            "Length": 70,
+            "RollOffset": 0,
+            "YawStartOffset": -20
+          },
+          "HitBlock": {
+            "Interactions": [
+              {
+                "Type": "EOO_SicklePreHarvest",
+                "Next": {
+                  "Type": "HarvestCrop",
+                  "RequireNotBroken": true,
+                  "Next": {
+                    "Type": "EOO_SickleCropXp",
+                    "Next": {
+                      "Type": "ModifyInventory",
+                      "AdjustHeldItemDurability": -1
+                    }
+                  },
+                  "Failed": "Block_Break_Adventure"
+                }
+              }
+            ]
+          },
+          "HitEntity": {
+            "Interactions": [
+              {
+                "Type": "Replace",
+                "DefaultValue": {
+                  "Interactions": [
+                    "Sickle_Swing_Right_Damage"
+                  ]
+                },
+                "Var": "Sickle_Swing_Right_Damage"
+              }
+            ]
+          },
+          "Next": {
+            "Type": "Simple",
+            "RunTime": 0.2
+          }
+        }
+      ]
+    }
+  },
+  "IconProperties": {
+    "Scale": 0.37,
+    "Translation": [
+      31.2,
+      -30
+    ],
+    "Rotation": [
+      45,
+      270,
+      0
+    ]
+  },
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "MaxDurability": 100,
+  "Tags": {
+    "Type": [
+      "Tool"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Weapons_Wood",
+  "MaxStack": 1
+}

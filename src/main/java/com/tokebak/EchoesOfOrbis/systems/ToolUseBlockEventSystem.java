@@ -5,6 +5,8 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
+import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockGathering;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.HarvestingDropType;
@@ -14,15 +16,21 @@ import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.interaction.BlockHarvestUtils;
+import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.protocol.BlockPosition;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Handles UseBlockEvent.Pre: when the player uses a block (e.g. F on crop with sickle), awards tool XP
@@ -32,16 +40,21 @@ import java.util.List;
 public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.system.EntityEventSystem<EntityStore, UseBlockEvent.Pre> {
 
     private static final double TOOL_XP_PER_HARVEST_DROP = 2.0;
+    private static final double DROP_BONUS_CAP = 0.50;
 
     private final ItemExpService itemExpService;
+    private final WeaponEffectsService effectsService;
     private final HudDisplaySystem hudDisplaySystem;
+    private final Random random = new Random();
 
     public ToolUseBlockEventSystem(
             @Nonnull final ItemExpService itemExpService,
+            @Nonnull final WeaponEffectsService effectsService,
             @Nonnull final HudDisplaySystem hudDisplaySystem
     ) {
         super(UseBlockEvent.Pre.class);
         this.itemExpService = itemExpService;
+        this.effectsService = effectsService;
         this.hudDisplaySystem = hudDisplaySystem;
     }
 
@@ -62,7 +75,7 @@ public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.
             return;
         }
         final ItemStack tool = context.getHeldItem();
-        if (tool == null || tool.isEmpty() || tool.getItem() == null || tool.getItem().getTool() == null) {
+        if (tool == null || tool.isEmpty() || !WeaponCategoryUtil.isTool(tool)) {
             return;
         }
         if (itemExpService == null || !itemExpService.canGainXp(tool)) {
@@ -112,7 +125,7 @@ public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.
         // Log once so we know UseBlockEvent.Pre is the path for sickle-on-crop
         System.out.println("[EOO] ToolUseBlockEventSystem: awarded " + xpToAdd + " XP for tool use on harvestable block " + blockType.getId());
         ItemStack currentTool = inventory.getActiveHotbarItem();
-        if (currentTool != null && !currentTool.isEmpty() && currentTool.getItem() != null && currentTool.getItem().getTool() != null) {
+        if (currentTool != null && !currentTool.isEmpty() && WeaponCategoryUtil.isTool(currentTool)) {
             final double totalXpAfter = itemExpService.getTotalXpWithPending(currentTool, playerRef, activeSlot);
             final int levelAfter = itemExpService.calculateLevelFromXp(totalXpAfter);
             if (levelAfter > currentToolLevel) {
@@ -126,6 +139,41 @@ public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.
                 ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, flushedTool, levelAfter, itemExpService);
             } else if (hudDisplaySystem != null) {
                 hudDisplaySystem.updateHudForPlayer(playerRef, currentTool, activeSlot);
+            }
+        }
+
+        // ---- Bonus drops (TOOL_DROP_BONUS) ----
+        final int toolLevelForDrops = itemExpService.getItemLevel(
+                currentTool != null && !currentTool.isEmpty() ? currentTool : tool);
+        if (toolLevelForDrops > 1) {
+            final ItemStack dropCheckTool = (currentTool != null && !currentTool.isEmpty()) ? currentTool : tool;
+            double bonusPercent = 0;
+            for (var inst : effectsService.getEffects(dropCheckTool)) {
+                if (inst.getType() == WeaponEffectType.TOOL_DROP_BONUS) {
+                    var def = effectsService.getDefinition(inst.getType());
+                    if (def != null) {
+                        bonusPercent = Math.min(DROP_BONUS_CAP, def.calculateValue(inst.getLevel()));
+                        break;
+                    }
+                }
+            }
+            if (bonusPercent > 0 && random.nextDouble() < bonusPercent) {
+                final BlockPosition blockPos = context.getTargetBlock();
+                if (blockPos != null) {
+                    final List<ItemStack> bonusStacks = BlockHarvestUtils.getDrops(blockType, 1, itemId, dropListId);
+                    if (bonusStacks != null && !bonusStacks.isEmpty()) {
+                        final Vector3d dropPos = new Vector3d(
+                                blockPos.x + 0.5,
+                                blockPos.y,
+                                blockPos.z + 0.5
+                        );
+                        var holders = ItemComponent.generateItemDrops(store, bonusStacks, dropPos, Vector3f.ZERO);
+                        for (var holder : holders) {
+                            commandBuffer.addEntity(holder, com.hypixel.hytale.component.AddReason.SPAWN);
+                        }
+                        System.out.println("[EOO] ToolUseBlockEventSystem: bonus drop spawned for " + blockType.getId());
+                    }
+                }
             }
         }
     }

@@ -23,6 +23,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
+import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
@@ -82,7 +83,7 @@ public final class ToolBreakBlockEventSystem extends com.hypixel.hytale.componen
             return;
         }
 
-        if (tool.getItem() == null || tool.getItem().getTool() == null) {
+        if (!WeaponCategoryUtil.isTool(tool)) {
             return;
         }
 
@@ -137,7 +138,7 @@ public final class ToolBreakBlockEventSystem extends com.hypixel.hytale.componen
 
         // Re-read tool from inventory in case durability save swapped it
         ItemStack currentTool = inventory.getActiveHotbarItem();
-        if (currentTool == null || currentTool.isEmpty() || currentTool.getItem() == null || currentTool.getItem().getTool() == null) {
+        if (currentTool == null || currentTool.isEmpty() || !WeaponCategoryUtil.isTool(currentTool)) {
             return;
         }
         final int currentToolLevel = itemExpService.getItemLevel(currentTool);
