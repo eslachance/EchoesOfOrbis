@@ -187,5 +187,6 @@ So **bonus drops = same BreakBlockEvent handler**, using `BlockHarvestUtils.getD
 | **Bonus drops (tools)** | New effect `TOOL_DROP_BONUS` for TOOL only; in BreakBlockEvent handler spawn extra item entities via `BlockHarvestUtils.getDrops` + `ItemComponent.generateItemDrops` / `addEntities`. |
 | **Tool XP** | Award XP in the block-break handler when the used item is a tool, reusing existing pending XP and level-up flow. |
 | **Tree-fall XP** | Support blocks: BFS counts connected same-type support blocks and sameLevelCount at break Y; only award falling XP when sameLevelCount == 0 (tree actually falls). Bonus drops: spawn via CommandBuffer.addEntity to avoid disconnect. |
+| **Shears on entity** | Left-click shears on entity (e.g. sheep) fires **PlayerInteractEvent** (Primary + target entity), not BreakBlockEvent. **ToolEntityInteractHandler** registered on `PlayerInteractEvent`: when action is Primary, item in hand is a tool, and target entity is non-null, award tool XP (same amount as one block break) and run level-up flow. |
 
 All of this stays consistent with the existing effect system (categories, definitions, processors, metadata on items) and reuses the same XP/level/embue pipeline as weapons and armor.

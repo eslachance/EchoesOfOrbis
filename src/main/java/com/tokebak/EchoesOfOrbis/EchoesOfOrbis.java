@@ -9,6 +9,8 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerInteractEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerMouseButtonEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.inventory.transaction.ListTransaction;
 import com.hypixel.hytale.server.core.inventory.transaction.MoveTransaction;
@@ -34,6 +36,7 @@ import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.PlayerAttackPowerDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.ThornsDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.ToolBreakBlockEventSystem;
+import com.tokebak.EchoesOfOrbis.systems.ToolEntityInteractHandler;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.util.Map;
@@ -76,15 +79,20 @@ public class EchoesOfOrbis extends JavaPlugin {
         this.baubleContainerService.setOnBaubleContainerChange(this::onBaubleContainerChanged);
         BaubleContainerService.setInstance(this.baubleContainerService);
 
-        // Register the custom F-key interaction for upgrade selection
+        // Register custom interactions
         this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
                 .register(com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.ID,
                         com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.class,
                         com.tokebak.EchoesOfOrbis.interactions.ShowUpgradeSelectionInteraction.CODEC);
+        this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
+                .register(com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.ID,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.class,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.CODEC);
 
         // Register the HUD display system that shows/hides the status HUD based on active weapon
         // Must be registered BEFORE ItemExpDamageSystem so it can receive XP update notifications
         this.hudDisplaySystem = new HudDisplaySystem(this.itemExpService, this.baubleContainerService);
+        HudDisplaySystem.setInstance(this.hudDisplaySystem);
         this.getEntityStoreRegistry().registerSystem(this.hudDisplaySystem);
 
         // Register the damage system that processes combat events
@@ -103,10 +111,29 @@ public class EchoesOfOrbis extends JavaPlugin {
                 new ThornsDamageSystem(this.baubleContainerService, this.weaponEffectsService)
         );
 
-        // Tool break: durability save, XP, and drop bonus for pickaxe/shovel/shears
+        // Tool break: durability save, XP, and drop bonus for pickaxe/shovel/axe
         this.getEntityStoreRegistry().registerSystem(
                 new ToolBreakBlockEventSystem(this.itemExpService, this.weaponEffectsService, this.hudDisplaySystem)
         );
+
+        // Tool on entity (e.g. shears on sheep): try both events to see which fires on left-click entity
+        final ToolEntityInteractHandler toolEntityInteractHandler = new ToolEntityInteractHandler(
+                this.itemExpService,
+                this.hudDisplaySystem
+        );
+        this.getEventRegistry().registerGlobal(PlayerInteractEvent.class, toolEntityInteractHandler::onPlayerInteract);
+        System.out.println("[EOO]: Registered ToolEntityInteractHandler for PlayerInteractEvent");
+
+        this.getEventRegistry().registerGlobal(PlayerMouseButtonEvent.class, e -> {
+            String itemId = e.getItemInHand() != null ? e.getItemInHand().getId() : "null";
+            boolean hasEntity = e.getTargetEntity() != null;
+            String btn = e.getMouseButton() != null ? e.getMouseButton().toString() : "null";
+            System.out.println("[EOO ToolEntity] PlayerMouseButtonEvent: button=" + btn + ", targetEntity=" + hasEntity + ", item=" + itemId);
+            if (hasEntity && e.getItemInHand() != null && e.getItemInHand().getTool() != null) {
+                toolEntityInteractHandler.onMouseButtonEntity(e);
+            }
+        });
+        System.out.println("[EOO]: Registered debug + handler for PlayerMouseButtonEvent");
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 

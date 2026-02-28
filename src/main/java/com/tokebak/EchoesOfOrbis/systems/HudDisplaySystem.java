@@ -33,6 +33,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HudDisplaySystem extends EntityTickingSystem<EntityStore> {
 
+    private static volatile HudDisplaySystem instance;
+
+    public static void setInstance(@Nullable final HudDisplaySystem hudDisplaySystem) {
+        instance = hudDisplaySystem;
+    }
+
+    @Nullable
+    public static HudDisplaySystem getInstance() {
+        return instance;
+    }
+
     /** Interval (seconds) between applying Healing_Totem_Heal when player has RING_HEALTH_REGEN. Matches totem feel. */
     private static final float RING_HEAL_INTERVAL = 1f;
 
