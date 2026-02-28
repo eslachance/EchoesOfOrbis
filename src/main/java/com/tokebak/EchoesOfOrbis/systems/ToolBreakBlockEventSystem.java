@@ -174,7 +174,9 @@ public final class ToolBreakBlockEventSystem extends com.hypixel.hytale.componen
             hudDisplaySystem.updateHudForPlayer(playerRef, flushedTool, activeSlot);
             ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, flushedTool, levelAfter, itemExpService);
         } else {
-            hudDisplaySystem.updateHudForPlayer(playerRef, currentTool, activeSlot);
+            ItemStack flushedTool = itemExpService.flushPendingXp(currentTool, playerRef, activeSlot);
+            inventory.getHotbar().setItemStackForSlot((short) activeSlot, flushedTool);
+            hudDisplaySystem.updateHudForPlayer(playerRef, flushedTool, activeSlot);
         }
 
         // ---- Bonus drops (TOOL_DROP_BONUS) ----

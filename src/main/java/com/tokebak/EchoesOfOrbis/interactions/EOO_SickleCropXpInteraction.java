@@ -103,7 +103,6 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
 
         // ---- Tool XP ----
         itemExpService.addPendingXp(playerRef, activeSlot, TOOL_XP_PER_CROP_HARVEST);
-        System.out.println("[EOO] SickleCropXp: awarded " + TOOL_XP_PER_CROP_HARVEST + " XP for crop harvest (slot=" + activeSlot + ")");
 
         ItemStack currentTool = inventory.getActiveHotbarItem();
         if (currentTool != null && !currentTool.isEmpty() && currentTool.getItem() != null) {
@@ -119,26 +118,23 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
                 }
                 ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, flushedTool, levelAfter, itemExpService);
                 currentTool = flushedTool;
-            } else if (hudDisplaySystem != null) {
-                hudDisplaySystem.updateHudForPlayer(playerRef, currentTool, activeSlot);
+            } else {
+                ItemStack flushedTool = itemExpService.flushPendingXp(currentTool, playerRef, activeSlot);
+                inventory.getHotbar().setItemStackForSlot((short) activeSlot, flushedTool);
+                if (hudDisplaySystem != null) {
+                    hudDisplaySystem.updateHudForPlayer(playerRef, flushedTool, activeSlot);
+                }
+                currentTool = flushedTool;
             }
         }
 
         // ---- Bonus drops (TOOL_DROP_BONUS) ----
-        System.out.println("[EOO] SickleCropXp: harvestInfo=" + (harvestInfo != null ? harvestInfo.getBlockType().getId() : "NULL")
-                + ", cachedPos=" + (harvestInfo != null && harvestInfo.getPosition() != null
-                    ? harvestInfo.getPosition().x + "," + harvestInfo.getPosition().y + "," + harvestInfo.getPosition().z : "NULL")
-                + ", contextTargetBlock=" + (context.getTargetBlock() != null
-                    ? context.getTargetBlock().x + "," + context.getTargetBlock().y + "," + context.getTargetBlock().z : "NULL"));
-
         if (harvestInfo != null && currentTool != null && !currentTool.isEmpty()) {
             final int dropToolLevel = itemExpService.getItemLevel(currentTool);
-            System.out.println("[EOO] SickleCropXp: dropToolLevel=" + dropToolLevel);
             if (dropToolLevel > 1) {
                 final WeaponEffectsService effectsService = itemExpService.getEffectsService();
                 double bonusPercent = 0;
                 for (var inst : effectsService.getEffects(currentTool)) {
-                    System.out.println("[EOO] SickleCropXp: effect=" + inst.getType() + " level=" + inst.getLevel());
                     if (inst.getType() == WeaponEffectType.TOOL_DROP_BONUS) {
                         var def = effectsService.getDefinition(inst.getType());
                         if (def != null) {
@@ -147,7 +143,6 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
                         }
                     }
                 }
-                System.out.println("[EOO] SickleCropXp: bonusPercent=" + bonusPercent);
                 if (bonusPercent > 0 && RANDOM.nextDouble() < bonusPercent) {
                     spawnBonusDrops(harvestInfo, context, store);
                 }
@@ -165,14 +160,12 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
         final BlockType originalBlockType = harvestInfo.getBlockType();
         final BlockGathering gathering = originalBlockType.getGathering();
         if (gathering == null || gathering.getHarvest() == null) {
-            System.out.println("[EOO] SickleCropXp: no gathering/harvest on " + originalBlockType.getId());
             return;
         }
         final HarvestingDropType harvest = gathering.getHarvest();
         final List<ItemStack> bonusStacks = BlockHarvestUtils.getDrops(
                 originalBlockType, 1, harvest.getItemId(), harvest.getDropListId());
         if (bonusStacks == null || bonusStacks.isEmpty()) {
-            System.out.println("[EOO] SickleCropXp: getDrops returned empty for " + originalBlockType.getId());
             return;
         }
 
@@ -181,7 +174,6 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
             blockPos = context.getTargetBlock();
         }
         if (blockPos == null) {
-            System.out.println("[EOO] SickleCropXp: no block position available for bonus drop spawn");
             return;
         }
         final Vector3d dropPos = new Vector3d(blockPos.x + 0.5, blockPos.y, blockPos.z + 0.5);
@@ -189,6 +181,5 @@ public final class EOO_SickleCropXpInteraction extends SimpleInstantInteraction 
         for (var holder : holders) {
             context.getCommandBuffer().addEntity(holder, com.hypixel.hytale.component.AddReason.SPAWN);
         }
-        System.out.println("[EOO] SickleCropXp: bonus drop spawned " + bonusStacks.size() + " stacks for " + originalBlockType.getId());
     }
 }

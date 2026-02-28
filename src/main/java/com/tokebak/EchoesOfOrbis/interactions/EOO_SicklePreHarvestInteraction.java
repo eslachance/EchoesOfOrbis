@@ -36,21 +36,15 @@ public final class EOO_SicklePreHarvestInteraction extends SimpleInstantInteract
             @Nonnull final CooldownHandler cooldown
     ) {
         final BlockPosition targetBlock = context.getTargetBlock();
-        System.out.println("[EOO] SicklePreHarvest: targetBlock=" + (targetBlock != null ? targetBlock.x + "," + targetBlock.y + "," + targetBlock.z : "NULL"));
-
         if (targetBlock != null) {
             try {
                 final EntityStore entityStore = (EntityStore) context.getCommandBuffer().getStore().getExternalData();
                 final World world = entityStore.getWorld();
                 if (world != null) {
                     final BlockType blockType = world.getBlockType(targetBlock.x, targetBlock.y, targetBlock.z);
-                    System.out.println("[EOO] SicklePreHarvest: cached blockType=" + (blockType != null ? blockType.getId() : "NULL") + " at " + targetBlock.x + "," + targetBlock.y + "," + targetBlock.z);
                     SickleHarvestCache.store(blockType, targetBlock);
-                } else {
-                    System.out.println("[EOO] SicklePreHarvest: world is null");
                 }
-            } catch (final Exception e) {
-                System.out.println("[EOO] SicklePreHarvest: failed to cache block info: " + e.getMessage());
+            } catch (final Exception ignored) {
             }
         }
         context.getState().state = InteractionState.Finished;

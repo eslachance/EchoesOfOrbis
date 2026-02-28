@@ -129,8 +129,12 @@ public final class ToolDamageBlockEventSystem extends com.hypixel.hytale.compone
                     hudDisplaySystem.updateHudForPlayer(playerRef, flushedTool, activeSlot);
                 }
                 ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, flushedTool, levelAfter, itemExpService);
-            } else if (hudDisplaySystem != null) {
-                hudDisplaySystem.updateHudForPlayer(playerRef, currentTool, activeSlot);
+            } else {
+                ItemStack flushedTool = itemExpService.flushPendingXp(currentTool, playerRef, activeSlot);
+                inventory.getHotbar().setItemStackForSlot((short) activeSlot, flushedTool);
+                if (hudDisplaySystem != null) {
+                    hudDisplaySystem.updateHudForPlayer(playerRef, flushedTool, activeSlot);
+                }
             }
         }
     }
