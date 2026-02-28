@@ -88,6 +88,10 @@ public class EchoesOfOrbis extends JavaPlugin {
                 .register(com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.ID,
                         com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.class,
                         com.tokebak.EchoesOfOrbis.interactions.EOO_ToolEntityXpInteraction.CODEC);
+        this.getCodecRegistry(com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction.CODEC)
+                .register(com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.ID,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.class,
+                        com.tokebak.EchoesOfOrbis.interactions.EOO_SickleCropXpInteraction.CODEC);
 
         // Register the HUD display system that shows/hides the status HUD based on active weapon
         // Must be registered BEFORE ItemExpDamageSystem so it can receive XP update notifications
