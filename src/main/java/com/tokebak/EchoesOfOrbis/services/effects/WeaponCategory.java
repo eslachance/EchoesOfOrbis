@@ -38,7 +38,12 @@ public enum WeaponCategory {
     /**
      * Armor: items in armor slots (Head, Chest, Hands, Legs). Defensive effects only.
      */
-    ARMOR("armor");
+    ARMOR("armor"),
+
+    /**
+     * Tools: pickaxes, shovels, shears, etc. Gain XP from block breaks; effects like durability save and drop bonus.
+     */
+    TOOL("tool");
 
     private final String id;
     
@@ -122,5 +127,19 @@ public enum WeaponCategory {
      */
     public static Set<WeaponCategory> weapons() {
         return EnumSet.of(PHYSICAL, PROJECTILE, MAGIC);
+    }
+
+    /**
+     * Get a set for tools only (pickaxe, shovel, shears, etc.).
+     */
+    public static Set<WeaponCategory> tools() {
+        return EnumSet.of(TOOL);
+    }
+
+    /**
+     * Get a set for weapons and tools (for effects that apply to both, e.g. durability save).
+     */
+    public static Set<WeaponCategory> weaponsAndTools() {
+        return EnumSet.of(PHYSICAL, PROJECTILE, MAGIC, TOOL);
     }
 }

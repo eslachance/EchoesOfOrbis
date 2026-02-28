@@ -33,6 +33,7 @@ import com.tokebak.EchoesOfOrbis.systems.HudDisplaySystem;
 import com.tokebak.EchoesOfOrbis.systems.ItemExpDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.PlayerAttackPowerDamageSystem;
 import com.tokebak.EchoesOfOrbis.systems.ThornsDamageSystem;
+import com.tokebak.EchoesOfOrbis.systems.ToolBreakBlockEventSystem;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.util.Map;
@@ -100,6 +101,11 @@ public class EchoesOfOrbis extends JavaPlugin {
         // Thorns: reflect damage back at attacker when player is hit (RING_THORNS)
         this.getEntityStoreRegistry().registerSystem(
                 new ThornsDamageSystem(this.baubleContainerService, this.weaponEffectsService)
+        );
+
+        // Tool break: durability save, XP, and drop bonus for pickaxe/shovel/shears
+        this.getEntityStoreRegistry().registerSystem(
+                new ToolBreakBlockEventSystem(this.itemExpService, this.weaponEffectsService, this.hudDisplaySystem)
         );
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);

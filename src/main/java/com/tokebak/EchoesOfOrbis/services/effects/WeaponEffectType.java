@@ -31,9 +31,9 @@ public enum WeaponEffectType {
     LIFE_LEECH("life_leech", WeaponCategory.weapons()),
     
     /**
-     * Reduces durability loss on the weapon.
+     * Reduces durability loss on the weapon or tool.
      */
-    DURABILITY_SAVE("durability_save", WeaponCategory.weapons()),
+    DURABILITY_SAVE("durability_save", WeaponCategory.weaponsAndTools()),
     
     /**
      * Chance to deal critical damage (multiplied).
@@ -215,6 +215,13 @@ public enum WeaponEffectType {
      * General resistance (all damage types). Applied as stat modifier from equipped armor.
      */
     ARMOR_GENERAL_RESISTANCE("armor_general_resistance", WeaponCategory.armor()),
+
+    // ==================== TOOL ONLY ====================
+
+    /**
+     * Bonus percent to items dropped when breaking blocks with this tool.
+     */
+    TOOL_DROP_BONUS("tool_drop_bonus", WeaponCategory.tools()),
 
     // ==================== LEGACY / GENERIC ====================
 

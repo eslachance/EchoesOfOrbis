@@ -7,6 +7,7 @@ import com.tokebak.EchoesOfOrbis.services.WeaponMaterialService;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.AttackPowerRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorFireResistanceEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorGeneralResistanceEffectModule;
+import com.tokebak.EchoesOfOrbis.services.effects.modules.ToolDropBonusEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorPhysicalResistanceEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.ArmorProjectileResistanceEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.DamagePercentEffectModule;
@@ -86,6 +87,7 @@ public class WeaponEffectsService {
         this.register(new ArmorPhysicalResistanceEffectModule());
         this.register(new ArmorFireResistanceEffectModule());
         this.register(new ArmorGeneralResistanceEffectModule());
+        this.register(new ToolDropBonusEffectModule());
     }
 
     /**

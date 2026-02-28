@@ -57,6 +57,10 @@ public final class WeaponCategoryUtil {
         if (weapon != null && !weapon.isEmpty() && weapon.getItem() != null && weapon.getItem().getArmor() != null) {
             return WeaponCategory.ARMOR;
         }
+        // Check if item is a tool (pickaxe, shovel, shears, etc.)
+        if (weapon != null && !weapon.isEmpty() && weapon.getItem() != null && weapon.getItem().getTool() != null) {
+            return WeaponCategory.TOOL;
+        }
         // Then check if weapon is a magic weapon by ID
         if (weapon != null && !weapon.isEmpty()) {
             final String itemId = weapon.getItemId();
@@ -147,6 +151,9 @@ public final class WeaponCategoryUtil {
             case ARMOR:
                 key = EOO_CATEGORIES_PREFIX + "armor";
                 break;
+            case TOOL:
+                key = EOO_CATEGORIES_PREFIX + "tool";
+                break;
             default:
                 key = EOO_CATEGORIES_PREFIX + "unknown";
                 break;
@@ -161,6 +168,7 @@ public final class WeaponCategoryUtil {
             case MAGIC: return "Magic";
             case RING: return "Ring";
             case ARMOR: return "Armor";
+            case TOOL: return "Tool";
             default: return "Unknown";
         }
     }

@@ -45,6 +45,7 @@ eoo.categories.projectile = Projectile
 eoo.categories.magic = Magic
 eoo.categories.ring = Ring
 eoo.categories.armor = Armor
+eoo.categories.tool = Tool
 eoo.categories.unknown = Unknown
 
 # === Echoes of Orbis – Notifications (eoo.notifications) ===
@@ -94,3 +95,5 @@ eoo.effects.ring_thorns.name = Thorns
 eoo.effects.ring_thorns.description = +{value} thorns damage
 eoo.effects.ring_signature_energy.name = Signature Energy
 eoo.effects.ring_signature_energy.description = +{value} signature energy per attack
+eoo.effects.tool_drop_bonus.name = Drop Bonus
+eoo.effects.tool_drop_bonus.description = +{value} bonus to block drops
