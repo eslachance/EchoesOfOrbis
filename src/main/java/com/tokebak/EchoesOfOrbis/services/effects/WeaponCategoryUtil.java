@@ -58,7 +58,9 @@ public final class WeaponCategoryUtil {
             return WeaponCategory.ARMOR;
         }
         // Check if item is a tool (pickaxe, shovel, shears, etc.)
-        if (weapon != null && !weapon.isEmpty() && weapon.getItem() != null && weapon.getItem().getTool() != null) {
+        // Sickles have Weapon config instead of Tool config, but are tagged "Tool"
+        if (weapon != null && !weapon.isEmpty() && weapon.getItem() != null
+                && (weapon.getItem().getTool() != null || ItemTagUtil.hasTag(weapon, "Tool"))) {
             return WeaponCategory.TOOL;
         }
         // Then check if weapon is a magic weapon by ID
