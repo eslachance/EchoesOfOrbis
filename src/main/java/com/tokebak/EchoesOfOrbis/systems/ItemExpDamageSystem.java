@@ -25,6 +25,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.DamagePercentProcessor;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 import javax.annotation.Nonnull;
@@ -254,14 +255,9 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             final boolean isRapidFire = lastDamage != null && (now - lastDamage) < LEVEL_UP_DELAY_THRESHOLD_MS;
             
             if (isRapidFire) {
-                // Delay level up - rapid hits indicate an ultimate or charged attack in progress
                 final double pendingTotal = this.itemExpService.getPendingXp(playerRef, activeSlot);
-                if (this.config.isDebug()) {
-                    System.out.println(String.format(
-                            "[ItemExp] +%.2f XP (pending: %.2f) | LEVEL UP QUEUED %d->%d (rapid-fire %dms)",
-                            xpGained, pendingTotal, currentLevel, levelAfter, (now - lastDamage)
-                    ));
-                }
+                EooLogger.debug("+%.2f XP (pending: %.2f) | LEVEL UP QUEUED %d->%d (rapid-fire %dms)",
+                        xpGained, pendingTotal, currentLevel, levelAfter, (now - lastDamage));
                 // Send XP notification even when delaying level up
                 if (this.config.isShowXpNotifications() && xpGained >= this.config.getMinXpForNotification()) {
                     ItemExpNotifications.sendXpGainNotification(playerRef, xpGained, weapon, this.itemExpService);
@@ -280,25 +276,17 @@ public class ItemExpDamageSystem extends DamageEventSystem {
             // Send level up notification with icon
             ItemExpNotifications.sendLevelUpNotificationWithIcon(playerRef, updatedWeapon, levelAfter, this.itemExpService);
             
-            if (this.config.isDebug()) {
-                final WeaponEffectsService effectsService = this.itemExpService.getEffectsService();
-                System.out.println(String.format(
-                        "[ItemExp] Level up! %d -> %d | Effects: %s",
-                        currentLevel, levelAfter,
-                        effectsService.getEffectsSummary(updatedWeapon)
-                ));
-            }
+            EooLogger.debug("Level up! %d -> %d | Effects: %s",
+                    currentLevel, levelAfter,
+                    this.itemExpService.getEffectsService().getEffectsSummary(updatedWeapon));
             
             return; // Level up handled, we're done
         }
         
-        // No level up - just log if debug
-        if (this.config.isDebug()) {
+        if (EooLogger.isDebug()) {
             final double pendingTotal = this.itemExpService.getPendingXp(playerRef, activeSlot);
-            System.out.println(String.format(
-                    "[ItemExp] Cached %.2f XP (pending total: %.2f, will flush after %dms idle)",
-                    xpGained, pendingTotal, COMBAT_IDLE_FLUSH_MS
-            ));
+            EooLogger.debug("Cached %.2f XP (pending total: %.2f, will flush after %dms idle)",
+                    xpGained, pendingTotal, COMBAT_IDLE_FLUSH_MS);
         }
         
         // Send XP notification if enabled
@@ -454,12 +442,10 @@ public class ItemExpDamageSystem extends DamageEventSystem {
         final int levelBefore = this.itemExpService.getItemLevel(weapon);
         final double pendingXp = this.itemExpService.getPendingXp(playerRef, slot);
         
-        if (this.config.isDebug()) {
+        if (EooLogger.isDebug()) {
             final double xpBefore = this.itemExpService.getItemXp(weapon);
-            System.out.println(String.format(
-                    "[EOO] flushPendingXpAndSwap: BEFORE flush - Level=%d, StoredXP=%.2f, PendingXP=%.2f",
-                    levelBefore, xpBefore, pendingXp
-            ));
+            EooLogger.debug("flushPendingXpAndSwap: BEFORE flush - Level=%d, StoredXP=%.2f, PendingXP=%.2f",
+                    levelBefore, xpBefore, pendingXp);
         }
         
         // Flush pending XP to the weapon

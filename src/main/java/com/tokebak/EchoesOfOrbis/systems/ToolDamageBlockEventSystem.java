@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.modules.interaction.BlockHarvestUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
@@ -115,7 +116,7 @@ public final class ToolDamageBlockEventSystem extends com.hypixel.hytale.compone
 
         final int currentToolLevel = itemExpService.getItemLevel(tool);
         itemExpService.addPendingXp(playerRef, activeSlot, xpToAdd);
-        System.out.println("[EOO] ToolDamageBlockEventSystem: awarded " + xpToAdd + " XP for sickle harvest on " + blockType.getId());
+        EooLogger.debug("ToolDamageBlockEventSystem: awarded %.0f XP for sickle harvest on %s", xpToAdd, blockType.getId());
         ItemStack currentTool = inventory.getActiveHotbarItem();
         if (currentTool != null && !currentTool.isEmpty() && WeaponCategoryUtil.isTool(currentTool)) {
             final double totalXpAfter = itemExpService.getTotalXpWithPending(currentTool, playerRef, activeSlot);

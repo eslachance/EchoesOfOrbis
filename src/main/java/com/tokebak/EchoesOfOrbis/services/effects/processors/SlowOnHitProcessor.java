@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -109,10 +110,7 @@ public class SlowOnHitProcessor implements EffectProcessor {
         
         if (applied) {
             this.targetCooldowns.put(targetKey, now);
-            System.out.println(String.format(
-                    "[WeaponEffect] SLOW_ON_HIT: Applied Slow (%.0f%% chance)",
-                    slowChance * 100
-            ));
+            EooLogger.debug("SLOW_ON_HIT: Applied Slow (%.0f%% chance)", slowChance * 100);
         }
     }
     
@@ -129,9 +127,9 @@ public class SlowOnHitProcessor implements EffectProcessor {
         this.cachedSlowEffect = (EntityEffect) EntityEffect.getAssetMap().getAsset(SLOW_EFFECT_ID);
         
         if (this.cachedSlowEffect != null) {
-            System.out.println("[WeaponEffect] Found slow effect: " + SLOW_EFFECT_ID);
+            EooLogger.debug("Found slow effect: %s", SLOW_EFFECT_ID);
         } else {
-            System.out.println("[WeaponEffect] Warning: Slow EntityEffect not found.");
+            EooLogger.warn("Slow EntityEffect not found.");
         }
         
         return this.cachedSlowEffect;

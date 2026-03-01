@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
@@ -116,11 +117,7 @@ public class FireOnHitProcessor implements EffectProcessor {
         
         if (applied) {
             this.targetCooldowns.put(targetKey, now);
-            System.out.println(String.format(
-                    "[WeaponEffect] FIRE_ON_HIT: Applied %s (%.0f%% chance)",
-                    this.cachedBurnEffectId,
-                    burnChance * 100
-            ));
+            EooLogger.debug("FIRE_ON_HIT: Applied %s (%.0f%% chance)", this.cachedBurnEffectId, burnChance * 100);
         }
     }
     
@@ -139,12 +136,12 @@ public class FireOnHitProcessor implements EffectProcessor {
             this.cachedBurnEffect = (EntityEffect) EntityEffect.getAssetMap().getAsset(effectId);
             if (this.cachedBurnEffect != null) {
                 this.cachedBurnEffectId = effectId;
-                System.out.println("[WeaponEffect] Found burn effect: " + effectId);
+                EooLogger.debug("Found burn effect: %s", effectId);
                 return this.cachedBurnEffect;
             }
         }
         
-        System.out.println("[WeaponEffect] Warning: No burn EntityEffect found.");
+        EooLogger.warn("No burn EntityEffect found.");
         return null;
     }
     

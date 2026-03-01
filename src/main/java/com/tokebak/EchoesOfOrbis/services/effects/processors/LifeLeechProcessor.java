@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntitySta
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 
 /**
@@ -55,12 +56,6 @@ public class LifeLeechProcessor implements EffectProcessor {
         // Add health to the attacker
         attackerStats.addStatValue(healthStatIndex, healAmount);
         
-        // Debug logging
-        System.out.println(String.format(
-                "[WeaponEffect] LIFE_LEECH: %.0f%% of %.2f damage = %.2f HP healed",
-                leechPercent * 100,
-                damageDealt,
-                healAmount
-        ));
+        EooLogger.debug("LIFE_LEECH: %.0f%% of %.2f damage = %.2f HP healed", leechPercent * 100, damageDealt, healAmount);
     }
 }

@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
@@ -113,11 +114,7 @@ public class PoisonOnHitProcessor implements EffectProcessor {
         
         if (applied) {
             this.targetCooldowns.put(targetKey, now);
-            System.out.println(String.format(
-                    "[WeaponEffect] POISON_ON_HIT: Applied %s (%.0f%% chance)",
-                    this.cachedPoisonEffectId,
-                    poisonChance * 100
-            ));
+            EooLogger.debug("POISON_ON_HIT: Applied %s (%.0f%% chance)", this.cachedPoisonEffectId, poisonChance * 100);
         }
     }
     
@@ -136,12 +133,12 @@ public class PoisonOnHitProcessor implements EffectProcessor {
             this.cachedPoisonEffect = (EntityEffect) EntityEffect.getAssetMap().getAsset(effectId);
             if (this.cachedPoisonEffect != null) {
                 this.cachedPoisonEffectId = effectId;
-                System.out.println("[WeaponEffect] Found poison effect: " + effectId);
+                EooLogger.debug("Found poison effect: %s", effectId);
                 return this.cachedPoisonEffect;
             }
         }
         
-        System.out.println("[WeaponEffect] Warning: No poison EntityEffect found.");
+        EooLogger.warn("No poison EntityEffect found.");
         return null;
     }
     

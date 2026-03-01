@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -109,10 +110,7 @@ public class FreezeOnHitProcessor implements EffectProcessor {
         
         if (applied) {
             this.targetCooldowns.put(targetKey, now);
-            System.out.println(String.format(
-                    "[WeaponEffect] FREEZE_ON_HIT: Applied Freeze (%.0f%% chance)",
-                    freezeChance * 100
-            ));
+            EooLogger.debug("FREEZE_ON_HIT: Applied Freeze (%.0f%% chance)", freezeChance * 100);
         }
     }
     
@@ -129,9 +127,9 @@ public class FreezeOnHitProcessor implements EffectProcessor {
         this.cachedFreezeEffect = (EntityEffect) EntityEffect.getAssetMap().getAsset(FREEZE_EFFECT_ID);
         
         if (this.cachedFreezeEffect != null) {
-            System.out.println("[WeaponEffect] Found freeze effect: " + FREEZE_EFFECT_ID);
+            EooLogger.debug("Found freeze effect: %s", FREEZE_EFFECT_ID);
         } else {
-            System.out.println("[WeaponEffect] Warning: Freeze EntityEffect not found.");
+            EooLogger.warn("Freeze EntityEffect not found.");
         }
         
         return this.cachedFreezeEffect;

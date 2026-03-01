@@ -39,6 +39,7 @@ import com.tokebak.EchoesOfOrbis.systems.ToolBreakBlockEventSystem;
 import com.tokebak.EchoesOfOrbis.systems.ToolDamageBlockEventSystem;
 import com.tokebak.EchoesOfOrbis.systems.ToolEntityInteractHandler;
 import com.tokebak.EchoesOfOrbis.systems.ToolUseBlockEventSystem;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.util.Map;
@@ -65,8 +66,10 @@ public class EchoesOfOrbis extends JavaPlugin {
     @Override
     protected void setup () {
         super.setup();
+        this.config.save();
         final EchoesOfOrbisConfig cfg = this.config.get();
-        
+        EooLogger.init(cfg);
+
         // Initialize services
         // WeaponEffectsService manages effect definitions, processors, and application
         this.weaponEffectsService = new WeaponEffectsService();
@@ -142,22 +145,26 @@ public class EchoesOfOrbis extends JavaPlugin {
                 this.hudDisplaySystem
         );
         this.getEventRegistry().registerGlobal(PlayerInteractEvent.class, toolEntityInteractHandler::onPlayerInteract);
-        System.out.println("[EOO]: Registered ToolEntityInteractHandler for PlayerInteractEvent");
+        EooLogger.debug("Registered ToolEntityInteractHandler for PlayerInteractEvent");
 
         this.getEventRegistry().registerGlobal(PlayerMouseButtonEvent.class, e -> {
-            String itemId = e.getItemInHand() != null ? e.getItemInHand().getId() : "null";
-            boolean hasEntity = e.getTargetEntity() != null;
-            String btn = e.getMouseButton() != null ? e.getMouseButton().toString() : "null";
-            System.out.println("[EOO ToolEntity] PlayerMouseButtonEvent: button=" + btn + ", targetEntity=" + hasEntity + ", item=" + itemId);
-            if (hasEntity && e.getItemInHand() != null && e.getItemInHand().getTool() != null) {
+            if (EooLogger.isDebug()) {
+                String itemId = e.getItemInHand() != null ? e.getItemInHand().getId() : "null";
+                boolean hasEntity = e.getTargetEntity() != null;
+                String btn = e.getMouseButton() != null ? e.getMouseButton().toString() : "null";
+                EooLogger.debug("PlayerMouseButtonEvent: button=" + btn + ", targetEntity=" + hasEntity + ", item=" + itemId);
+            }
+            if (e.getTargetEntity() != null && e.getItemInHand() != null && e.getItemInHand().getTool() != null) {
                 toolEntityInteractHandler.onMouseButtonEntity(e);
             }
         });
-        System.out.println("[EOO]: Registered debug + handler for PlayerMouseButtonEvent");
+        EooLogger.debug("Registered handler for PlayerMouseButtonEvent");
 
         com.hypixel.hytale.server.core.io.ServerManager.get().registerSubPacketHandlers(EooPacketHandler::new);
 
-        System.out.println("[EOO]: Echoes of Orbis is loaded!");
+        EooLogger.info("========================================");
+        EooLogger.info("Echoes of Orbis loaded! debug=%s", cfg.isDebug());
+        EooLogger.info("========================================");
 
         // Send welcome message when player joins and apply ring-effect stats (stamina, health)
         this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {

@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import com.tokebak.EchoesOfOrbis.utils.ItemExpNotifications;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 
@@ -41,81 +42,81 @@ public final class ToolEntityInteractHandler {
         final boolean hasTargetEntity = event.getTargetEntity() != null;
         final ItemStack itemInHand = event.getItemInHand();
         final String itemId = itemInHand != null && itemInHand.getItem() != null ? itemInHand.getItem().getId() : "null";
-        System.out.println("[EOO ToolEntity] PlayerInteractEvent: actionType=" + actionType + ", targetEntity=" + hasTargetEntity + ", itemInHand=" + itemId);
+        EooLogger.debug("ToolEntity PlayerInteractEvent: actionType=%s, targetEntity=%s, itemInHand=%s", actionType, hasTargetEntity, itemId);
 
         if (event.isCancelled()) {
-            System.out.println("[EOO ToolEntity] SKIP: event cancelled");
+            EooLogger.debug("ToolEntity SKIP: event cancelled");
             return;
         }
         if (actionType != InteractionType.Primary) {
-            System.out.println("[EOO ToolEntity] SKIP: not Primary (got " + actionType + ")");
+            EooLogger.debug("ToolEntity SKIP: not Primary (got %s)", actionType);
             return;
         }
         if (!hasTargetEntity) {
-            System.out.println("[EOO ToolEntity] SKIP: no target entity");
+            EooLogger.debug("ToolEntity SKIP: no target entity");
             return;
         }
 
         final ItemStack tool = event.getItemInHand();
         if (tool == null || tool.isEmpty()) {
-            System.out.println("[EOO ToolEntity] SKIP: no item in hand or empty");
+            EooLogger.debug("ToolEntity SKIP: no item in hand or empty");
             return;
         }
         if (!itemExpService.canGainXp(tool)) {
-            System.out.println("[EOO ToolEntity] SKIP: canGainXp=false for " + itemId);
+            EooLogger.debug("ToolEntity SKIP: canGainXp=false for %s", itemId);
             return;
         }
         if (tool.getItem() == null || tool.getItem().getTool() == null) {
-            System.out.println("[EOO ToolEntity] SKIP: not a tool (getTool=null) for " + itemId);
+            EooLogger.debug("ToolEntity SKIP: not a tool (getTool=null) for %s", itemId);
             return;
         }
 
         final Ref<EntityStore> entityRef = event.getPlayerRef();
         if (entityRef == null || !entityRef.isValid()) {
-            System.out.println("[EOO ToolEntity] SKIP: playerRef null or invalid");
+            EooLogger.debug("ToolEntity SKIP: playerRef null or invalid");
             return;
         }
 
         final Player player = event.getPlayer();
         if (player == null) {
-            System.out.println("[EOO ToolEntity] SKIP: player null");
+            EooLogger.debug("ToolEntity SKIP: player null");
             return;
         }
 
         final Store<EntityStore> store = entityRef.getStore();
         final PlayerRef playerRef = (PlayerRef) store.getComponent(entityRef, PlayerRef.getComponentType());
         if (playerRef == null) {
-            System.out.println("[EOO ToolEntity] SKIP: PlayerRef component null");
+            EooLogger.debug("ToolEntity SKIP: PlayerRef component null");
             return;
         }
 
         final Inventory inventory = player.getInventory();
         if (inventory == null) {
-            System.out.println("[EOO ToolEntity] SKIP: inventory null");
+            EooLogger.debug("ToolEntity SKIP: inventory null");
             return;
         }
 
         final byte activeSlot = inventory.getActiveHotbarSlot();
         if (activeSlot == -1) {
-            System.out.println("[EOO ToolEntity] SKIP: activeSlot=-1");
+            EooLogger.debug("ToolEntity SKIP: activeSlot=-1");
             return;
         }
 
         final int currentToolLevel = itemExpService.getItemLevel(tool);
-        System.out.println("[EOO ToolEntity] AWARDING " + TOOL_XP_PER_ENTITY_USE + " XP for tool " + itemId + " on entity (slot=" + activeSlot + ", level=" + currentToolLevel + ")");
+        EooLogger.debug("ToolEntity AWARDING %.0f XP for tool %s on entity (slot=%d, level=%d)", TOOL_XP_PER_ENTITY_USE, itemId, activeSlot, currentToolLevel);
 
         itemExpService.addPendingXp(playerRef, activeSlot, TOOL_XP_PER_ENTITY_USE);
 
         ItemStack currentTool = inventory.getActiveHotbarItem();
         if (currentTool == null || currentTool.isEmpty() || currentTool.getItem() == null || currentTool.getItem().getTool() == null) {
-            System.out.println("[EOO ToolEntity] WARN: tool null or not-tool after addPendingXp (slot may have changed)");
+            EooLogger.warn("ToolEntity: tool null or not-tool after addPendingXp (slot may have changed)");
             return;
         }
 
         final double totalXpAfter = itemExpService.getTotalXpWithPending(currentTool, playerRef, activeSlot);
         final int levelAfter = itemExpService.calculateLevelFromXp(totalXpAfter);
         if (levelAfter > currentToolLevel) {
-            System.out.println("[EOO ToolEntity] LEVEL UP " + currentToolLevel + " -> " + levelAfter);
+            EooLogger.debug("ToolEntity LEVEL UP %d -> %d", currentToolLevel, levelAfter);
             ItemStack flushedTool = itemExpService.flushPendingXp(currentTool, playerRef, activeSlot);
             flushedTool = itemExpService.updateWeaponEffects(flushedTool, levelAfter);
             flushedTool = itemExpService.addPendingEmbues(flushedTool, levelAfter - currentToolLevel);
@@ -125,7 +126,7 @@ public final class ToolEntityInteractHandler {
         } else {
             hudDisplaySystem.updateHudForPlayer(playerRef, currentTool, activeSlot);
         }
-        System.out.println("[EOO ToolEntity] Done: XP added, HUD updated");
+        EooLogger.debug("ToolEntity Done: XP added, HUD updated");
     }
 
     /**
@@ -162,7 +163,7 @@ public final class ToolEntityInteractHandler {
             return;
         }
         final int currentToolLevel = itemExpService.getItemLevel(tool);
-        System.out.println("[EOO ToolEntity] MouseButton: AWARDING " + TOOL_XP_PER_ENTITY_USE + " XP for tool on entity (slot=" + activeSlot + ")");
+        EooLogger.debug("ToolEntity MouseButton: AWARDING %.0f XP for tool on entity (slot=%d)", TOOL_XP_PER_ENTITY_USE, activeSlot);
         itemExpService.addPendingXp(playerRef, activeSlot, TOOL_XP_PER_ENTITY_USE);
         ItemStack currentTool = inventory.getActiveHotbarItem();
         if (currentTool == null || currentTool.isEmpty() || currentTool.getItem() == null || currentTool.getItem().getTool() == null) {

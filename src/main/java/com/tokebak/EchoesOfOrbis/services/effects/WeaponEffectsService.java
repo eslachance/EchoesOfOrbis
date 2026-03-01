@@ -25,6 +25,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.modules.SlowOnHitEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.StaminaRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.modules.ThornsRingEffectModule;
 import com.tokebak.EchoesOfOrbis.services.effects.processors.EffectProcessor;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -391,7 +392,7 @@ public class WeaponEffectsService {
             final WeaponEffectDefinition definition = this.definitions.get(type);
             
             if (processor == null || definition == null) {
-                System.out.println("[WeaponEffect] Warning: No processor/definition for " + type);
+                EooLogger.warn("No processor/definition for %s", type);
                 continue;
             }
             
@@ -399,7 +400,7 @@ public class WeaponEffectsService {
             try {
                 processor.onDamageDealt(context, effect, definition);
             } catch (final Exception e) {
-                System.err.println("[WeaponEffect] Error applying effect " + type + ": " + e.getMessage());
+                EooLogger.warn("Error applying effect %s: %s", type, e.getMessage());
                 e.printStackTrace();
             }
         }

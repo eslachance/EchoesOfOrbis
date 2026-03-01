@@ -24,6 +24,7 @@ import com.tokebak.EchoesOfOrbis.services.ItemExpService;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -89,7 +90,7 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             final ItemContainer bauble = this.baubleContainerService.getOrCreate(playerRefForBuild);
             collectWeapons(bauble, "Bauble", this.weaponsList, -1);
             final int fromBauble = this.weaponsList.size() - beforeBauble;
-            System.out.println("[EOO UI] Bauble: " + fromBauble + " XP-gaining item(s) (container slots=" + bauble.getCapacity() + ")");
+            EooLogger.debug("UI Bauble: %d XP-gaining item(s) (container slots=%d)", fromBauble, bauble.getCapacity());
         }
 
         // Sort: (1) held item first, (2) items with available embues, (3) items with XP but no embues, (4) unused at end
@@ -140,14 +141,12 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
                 uiCommandBuilder.set(sel + " #Location.Text", weapon.locationText);
                 
                 // Show embue button if there are pending embues
-                System.out.println(String.format(
-                        "[EOO UI] %s: Level=%d, PendingEmbues=%d",
-                        weapon.item.getItemId(), weapon.level, weapon.pendingEmbues
-                ));
+                EooLogger.debug("UI %s: Level=%d, PendingEmbues=%d",
+                        weapon.item.getItemId(), weapon.level, weapon.pendingEmbues);
                 if (weapon.pendingEmbues > 0) {
                     uiCommandBuilder.set(sel + " #EmbueButton.Visible", true);
                     uiCommandBuilder.set(sel + " #EmbueButton.Text", EOOTranslations.ui("embuesAvailable", "count", weapon.pendingEmbues, "+" + weapon.pendingEmbues + " Embues"));
-                    System.out.println("[EOO UI] Showing embue button for " + weapon.item.getItemId());
+                    EooLogger.debug("UI Showing embue button for %s", weapon.item.getItemId());
                     
                     // Register click event for the embue button
                     uiEventBuilder.addEventBinding(
@@ -183,14 +182,14 @@ public class EOO_Main_Page extends InteractiveCustomUIPage<EOO_Main_Page.Data> {
             final ItemStack item = container.getItemStack(slot);
             if (item == null || item.isEmpty()) {
                 if ("Bauble".equals(containerName)) {
-                    System.out.println("[EOO UI] Bauble slot " + slot + ": empty");
+                    EooLogger.debug("UI Bauble slot %d: empty", slot);
                 }
                 continue;
             }
             final String itemId = item.getItemId();
             final boolean canGain = this.itemExpService.canGainXp(item);
             if ("Bauble".equals(containerName)) {
-                System.out.println("[EOO UI] Bauble slot " + slot + ": " + itemId + " canGainXp=" + canGain);
+                EooLogger.debug("UI Bauble slot %d: %s canGainXp=%s", slot, itemId, canGain);
             }
             if (canGain) {
                 final boolean isHeld = "Hotbar".equals(containerName) && activeHotbarSlot >= 0 && slot == activeHotbarSlot;

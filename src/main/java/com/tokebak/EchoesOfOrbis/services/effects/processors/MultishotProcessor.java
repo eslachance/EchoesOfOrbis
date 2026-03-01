@@ -21,6 +21,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategory;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Map;
@@ -171,7 +172,7 @@ public class MultishotProcessor implements EffectProcessor {
         // Get the projectile asset name based on charge level (inferred from damage)
         final String projectileAssetName = this.getProjectileAssetForCharge(context);
         if (projectileAssetName == null) {
-            System.out.println("[WeaponEffect] MULTISHOT: No valid projectile asset found");
+            EooLogger.debug("MULTISHOT: No valid projectile asset found");
             return;
         }
         
@@ -180,7 +181,7 @@ public class MultishotProcessor implements EffectProcessor {
         final Vector3f rotation = this.getAttackerRotation(context);
         
         if (spawnPosition == null || rotation == null) {
-            System.out.println("[WeaponEffect] MULTISHOT: Could not get attacker position/rotation");
+            EooLogger.debug("MULTISHOT: Could not get attacker position/rotation");
             return;
         }
         
@@ -194,15 +195,13 @@ public class MultishotProcessor implements EffectProcessor {
                     .getResource(TimeResource.getResourceType());
             
             if (timeResource == null) {
-                System.out.println("[WeaponEffect] MULTISHOT: Could not get TimeResource");
+                EooLogger.debug("MULTISHOT: Could not get TimeResource");
                 return;
             }
             
-            System.out.println(String.format(
-                    "[WeaponEffect] MULTISHOT: Spawning at pos=(%.2f, %.2f, %.2f) rot=(yaw=%.2f, pitch=%.2f)",
+            EooLogger.debug("MULTISHOT: Spawning at pos=(%.2f, %.2f, %.2f) rot=(yaw=%.2f, pitch=%.2f)",
                     spawnPosition.getX(), spawnPosition.getY(), spawnPosition.getZ(),
-                    rotation.getYaw(), rotation.getPitch()
-            ));
+                    rotation.getYaw(), rotation.getPitch());
             
             // Create the projectile holder
             final Holder<EntityStore> projectileHolder = ProjectileComponent.assembleDefaultProjectile(
@@ -217,13 +216,13 @@ public class MultishotProcessor implements EffectProcessor {
                     .getComponent(ProjectileComponent.getComponentType());
             
             if (projectileComponent == null) {
-                System.out.println("[WeaponEffect] MULTISHOT: ProjectileComponent is null");
+                EooLogger.debug("MULTISHOT: ProjectileComponent is null");
                 return;
             }
             
             // Initialize the projectile (loads the projectile asset)
             if (!projectileComponent.initialize()) {
-                System.out.println("[WeaponEffect] MULTISHOT: Failed to initialize projectile: " + projectileAssetName);
+                EooLogger.debug("MULTISHOT: Failed to initialize projectile: %s", projectileAssetName);
                 // Clear cache so we try other options next time
                 if (projectileAssetName.equals(this.cachedProjectileAsset)) {
                     this.cachedProjectileAsset = null;
@@ -235,11 +234,8 @@ public class MultishotProcessor implements EffectProcessor {
             // Get projectile config for debug info
             final Projectile projectileConfig = projectileComponent.getProjectile();
             if (projectileConfig != null) {
-                System.out.println(String.format(
-                        "[WeaponEffect] MULTISHOT: Projectile config - muzzleVelocity=%.2f, appearance=%s",
-                        projectileConfig.getMuzzleVelocity(),
-                        projectileComponent.getAppearance()
-                ));
+                EooLogger.debug("MULTISHOT: Projectile config - muzzleVelocity=%.2f, appearance=%s",
+                        projectileConfig.getMuzzleVelocity(), projectileComponent.getAppearance());
             }
             
             // Add NetworkId - CRITICAL for the entity to sync to clients
@@ -252,12 +248,12 @@ public class MultishotProcessor implements EffectProcessor {
                             NetworkId.getComponentType(),
                             new NetworkId(networkId)
                     );
-                    System.out.println("[WeaponEffect] MULTISHOT: Added NetworkId: " + networkId);
+                    EooLogger.debug("MULTISHOT: Added NetworkId: %d", networkId);
                 } else {
-                    System.out.println("[WeaponEffect] MULTISHOT: WARNING - EntityStore is null, no NetworkId added!");
+                    EooLogger.warn("MULTISHOT: EntityStore is null, no NetworkId added!");
                 }
             } catch (final Exception e) {
-                System.err.println("[WeaponEffect] MULTISHOT: Error adding NetworkId: " + e.getMessage());
+                EooLogger.warn("MULTISHOT: Error adding NetworkId: %s", e.getMessage());
             }
             
             // Get the attacker's UUID for setting as the projectile's creator
@@ -282,18 +278,14 @@ public class MultishotProcessor implements EffectProcessor {
                     (com.hypixel.hytale.server.core.modules.physics.component.Velocity) projectileHolder
                     .getComponent(com.hypixel.hytale.server.core.modules.physics.component.Velocity.getComponentType());
             if (velocity != null) {
-                System.out.println(String.format(
-                        "[WeaponEffect] MULTISHOT: After shoot - velocity component exists"
-                ));
+                EooLogger.debug("MULTISHOT: After shoot - velocity component exists");
             }
             
             // Add the projectile entity to the world
             final var projectileRef = context.getCommandBuffer().addEntity(projectileHolder, AddReason.SPAWN);
             
-            System.out.println(String.format(
-                    "[WeaponEffect] MULTISHOT: Entity added to world, ref valid: %s",
-                    projectileRef != null && projectileRef.isValid()
-            ));
+            EooLogger.debug("MULTISHOT: Entity added to world, ref valid: %s",
+                    projectileRef != null && projectileRef.isValid());
             
             // Update cooldown and cache the working asset name
             this.attackerCooldowns.put(attackerKey, now);
@@ -302,14 +294,10 @@ public class MultishotProcessor implements EffectProcessor {
             // Record this multishot fire so other effects don't proc on the extra arrow
             recentMultishotFires.put(attackerKey, now);
             
-            System.out.println(String.format(
-                    "[WeaponEffect] MULTISHOT: Fired extra %s (%.0f%% chance)",
-                    projectileAssetName,
-                    multishotChance * 100
-            ));
+            EooLogger.debug("MULTISHOT: Fired extra %s (%.0f%% chance)", projectileAssetName, multishotChance * 100);
             
         } catch (final Exception e) {
-            System.err.println("[WeaponEffect] MULTISHOT: Error spawning projectile: " + e.getMessage());
+            EooLogger.warn("MULTISHOT: Error spawning projectile: %s", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -333,7 +321,7 @@ public class MultishotProcessor implements EffectProcessor {
         }
         
         // Fallback to generic lookup if not found
-        System.out.println("[WeaponEffect] MULTISHOT: Arrow_HalfCharge not found, falling back");
+        EooLogger.debug("MULTISHOT: Arrow_HalfCharge not found, falling back");
         return this.getProjectileAssetName(context);
     }
     
@@ -354,7 +342,7 @@ public class MultishotProcessor implements EffectProcessor {
             // Verify this projectile actually exists
             final Projectile projectile = (Projectile) Projectile.getAssetMap().getAsset(arrowBasedAsset);
             if (projectile != null) {
-                System.out.println("[WeaponEffect] MULTISHOT: Found projectile from arrow: " + arrowBasedAsset);
+                EooLogger.debug("MULTISHOT: Found projectile from arrow: %s", arrowBasedAsset);
                 return arrowBasedAsset;
             }
         }
@@ -364,24 +352,24 @@ public class MultishotProcessor implements EffectProcessor {
             this.lookupAttempted = true;
             
             // FIRST: Check if Arrow_FullCharge exists (the ideal player arrow)
-            System.out.println("[WeaponEffect] MULTISHOT: Looking for Arrow_FullCharge...");
+            EooLogger.debug("MULTISHOT: Looking for Arrow_FullCharge...");
             final Projectile fullChargeArrow = (Projectile) Projectile.getAssetMap().getAsset("Arrow_FullCharge");
             if (fullChargeArrow != null) {
-                System.out.println("[WeaponEffect] MULTISHOT: Found Arrow_FullCharge - using it!");
+                EooLogger.debug("MULTISHOT: Found Arrow_FullCharge - using it!");
                 this.cachedProjectileAsset = "Arrow_FullCharge";
                 return "Arrow_FullCharge";
             }
             
             // Fallback: enumerate and find best match
-            System.out.println("[WeaponEffect] MULTISHOT: Arrow_FullCharge not found, enumerating all...");
+            EooLogger.debug("MULTISHOT: Arrow_FullCharge not found, enumerating all...");
             try {
                 final Map<?, ?> allProjectiles = Projectile.getAssetMap().getAssetMap();
-                System.out.println("[WeaponEffect] MULTISHOT: Found " + allProjectiles.size() + " total projectile assets:");
+                EooLogger.debug("MULTISHOT: Found %d total projectile assets:", allProjectiles.size());
                 
                 String bestArrow = null;
                 for (final Object key : allProjectiles.keySet()) {
                     final String assetId = key.toString();
-                    System.out.println("  - " + assetId);
+                    EooLogger.debug("  - %s", assetId);
                     
                     // Prefer player arrows (Arrow_*Charge) over NPC arrows
                     if (assetId.equals("Arrow_FullCharge") || assetId.equals("Arrow_HalfCharge") || assetId.equals("Arrow_NoCharge")) {
@@ -392,27 +380,27 @@ public class MultishotProcessor implements EffectProcessor {
                 }
                 
                 if (bestArrow != null) {
-                    System.out.println("[WeaponEffect] MULTISHOT: Using arrow asset: " + bestArrow);
+                    EooLogger.debug("MULTISHOT: Using arrow asset: %s", bestArrow);
                     this.cachedProjectileAsset = bestArrow;
                     return bestArrow;
                 }
             } catch (final Exception e) {
-                System.out.println("[WeaponEffect] MULTISHOT: Error enumerating: " + e.getMessage());
+                EooLogger.warn("MULTISHOT: Error enumerating: %s", e.getMessage());
             }
             
             // Fallback: try known projectile names
-            System.out.println("[WeaponEffect] MULTISHOT: No arrow asset found, trying known names...");
+            EooLogger.debug("MULTISHOT: No arrow asset found, trying known names...");
             
             for (final String assetName : PROJECTILE_ASSET_NAMES) {
                 final Projectile projectile = (Projectile) Projectile.getAssetMap().getAsset(assetName);
                 if (projectile != null) {
-                    System.out.println("[WeaponEffect] MULTISHOT: Using fallback: " + assetName);
+                    EooLogger.debug("MULTISHOT: Using fallback: %s", assetName);
                     this.cachedProjectileAsset = assetName;
                     return assetName;
                 }
             }
             
-            System.out.println("[WeaponEffect] MULTISHOT: No valid projectile assets found!");
+            EooLogger.warn("MULTISHOT: No valid projectile assets found!");
         }
         
         return this.cachedProjectileAsset;
@@ -448,7 +436,7 @@ public class MultishotProcessor implements EffectProcessor {
                 return null;
             }
             
-            System.out.println("[WeaponEffect] MULTISHOT: Found arrow item: " + arrowItemId);
+            EooLogger.debug("MULTISHOT: Found arrow item: %s", arrowItemId);
             
             // Try to convert arrow item ID to projectile asset name
             // e.g., "Weapon_Arrow_Crude" -> "Arrow_Crude"
@@ -456,7 +444,7 @@ public class MultishotProcessor implements EffectProcessor {
             return this.convertArrowItemToProjectile(arrowItemId);
             
         } catch (final Exception e) {
-            System.out.println("[WeaponEffect] MULTISHOT: Error finding arrows: " + e.getMessage());
+            EooLogger.warn("MULTISHOT: Error finding arrows: %s", e.getMessage());
             return null;
         }
     }
@@ -523,8 +511,7 @@ public class MultishotProcessor implements EffectProcessor {
             return arrowItemId;
         }
         
-        System.out.println("[WeaponEffect] MULTISHOT: Could not find projectile for arrow: " + arrowItemId);
-        System.out.println("[WeaponEffect] MULTISHOT: Tried: " + projectileName);
+        EooLogger.debug("MULTISHOT: Could not find projectile for arrow: %s (tried: %s)", arrowItemId, projectileName);
         
         return null;
     }
@@ -554,7 +541,7 @@ public class MultishotProcessor implements EffectProcessor {
                 return pos;
             }
         } catch (final Exception e) {
-            System.err.println("[WeaponEffect] MULTISHOT: Error getting attacker position: " + e.getMessage());
+            EooLogger.warn("MULTISHOT: Error getting attacker position: %s", e.getMessage());
         }
         return null;
     }
@@ -581,7 +568,7 @@ public class MultishotProcessor implements EffectProcessor {
                 return transform.getRotation();
             }
         } catch (final Exception e) {
-            System.err.println("[WeaponEffect] MULTISHOT: Error getting attacker rotation: " + e.getMessage());
+            EooLogger.warn("MULTISHOT: Error getting attacker rotation: %s", e.getMessage());
         }
         return null;
     }

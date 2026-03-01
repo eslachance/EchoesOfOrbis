@@ -28,6 +28,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import com.tokebak.EchoesOfOrbis.utils.WeaponSwapUtil;
 
 import javax.annotation.Nonnull;
@@ -194,11 +195,7 @@ public class EOO_Embue_Selection_Page extends InteractiveCustomUIPage<EOO_Embue_
         // Use safe write-and-swap to preserve SignatureEnergy (metadata writes reset it)
         this.setWeaponInInventory(ref, store, inventory, weapon, false);
         
-        System.out.println(String.format(
-                "[ItemExp] Upgrade selected: %s for %s",
-                effectType.getId(),
-                weapon.getItemId()
-        ));
+        EooLogger.debug("Upgrade selected: %s for %s", effectType.getId(), weapon.getItemId());
 
         // Return to main EOO menu instead of closing
         final EOO_Main_Page mainPage = new EOO_Main_Page(

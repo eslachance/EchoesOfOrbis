@@ -92,6 +92,20 @@ public class EchoesOfOrbisConfig {
         this.debug = value;
     }
 
+    @Override
+    public String toString() {
+        return "EchoesOfOrbisConfig{" +
+                "xpPerDamage=" + xpPerDamage +
+                ", xpMultiplier=" + xpMultiplier +
+                ", levelBaseXP=" + levelBaseXP +
+                ", levelScaling=" + levelScaling +
+                ", maxLevel=" + maxLevel +
+                ", showXpNotifications=" + showXpNotifications +
+                ", minXpForNotification=" + minXpForNotification +
+                ", debug=" + debug +
+                '}';
+    }
+
     // Static initializer for the codec
     static {
         CODEC = BuilderCodec.builder(EchoesOfOrbisConfig.class, (Supplier<EchoesOfOrbisConfig>) EchoesOfOrbisConfig::new)

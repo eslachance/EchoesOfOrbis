@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.protocol.BlockPosition;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.tokebak.EchoesOfOrbis.services.ItemExpService;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponCategoryUtil;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
@@ -123,7 +124,7 @@ public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.
         final int currentToolLevel = itemExpService.getItemLevel(tool);
         itemExpService.addPendingXp(playerRef, activeSlot, xpToAdd);
         // Log once so we know UseBlockEvent.Pre is the path for sickle-on-crop
-        System.out.println("[EOO] ToolUseBlockEventSystem: awarded " + xpToAdd + " XP for tool use on harvestable block " + blockType.getId());
+        EooLogger.debug("ToolUseBlockEventSystem: awarded %.0f XP for tool use on harvestable block %s", xpToAdd, blockType.getId());
         ItemStack currentTool = inventory.getActiveHotbarItem();
         if (currentTool != null && !currentTool.isEmpty() && WeaponCategoryUtil.isTool(currentTool)) {
             final double totalXpAfter = itemExpService.getTotalXpWithPending(currentTool, playerRef, activeSlot);
@@ -175,7 +176,7 @@ public final class ToolUseBlockEventSystem extends com.hypixel.hytale.component.
                         for (var holder : holders) {
                             commandBuffer.addEntity(holder, com.hypixel.hytale.component.AddReason.SPAWN);
                         }
-                        System.out.println("[EOO] ToolUseBlockEventSystem: bonus drop spawned for " + blockType.getId());
+                        EooLogger.debug("ToolUseBlockEventSystem: bonus drop spawned for %s", blockType.getId());
                     }
                 }
             }

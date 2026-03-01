@@ -28,6 +28,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectType;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectsService;
 import com.tokebak.EchoesOfOrbis.utils.EOOTranslations;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -219,7 +220,7 @@ public class EOO_Debug_Effects_Page extends InteractiveCustomUIPage<EOO_Debug_Ef
         weapon = weapon.withMetadata(ItemExpService.META_KEY_XP, com.hypixel.hytale.codec.Codec.DOUBLE, xpForNewLevel);
 
         this.setWeaponInInventory(inventory, weapon);
-        System.out.println("[DEBUG] " + (hasEffect ? "Upgraded" : "Added") + " effect " + effectType.getId() + " -> item level " + newLevel + " (XP: " + xpForNewLevel + ")");
+        EooLogger.debug("%s effect %s -> item level %d (XP: %.0f)", hasEffect ? "Upgraded" : "Added", effectType.getId(), newLevel, xpForNewLevel);
         return true;
     }
     

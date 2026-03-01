@@ -6,6 +6,7 @@ import com.tokebak.EchoesOfOrbis.services.effects.EffectContext;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectDefinition;
 import com.tokebak.EchoesOfOrbis.services.effects.WeaponEffectInstance;
 import com.tokebak.EchoesOfOrbis.systems.DurabilitySaveRestoreSystem;
+import com.tokebak.EchoesOfOrbis.utils.EooLogger;
 import javax.annotation.Nonnull;
 import java.util.Random;
 
@@ -57,10 +58,7 @@ public class DurabilitySaveProcessor implements EffectProcessor {
                     DurabilitySaveRestoreSystem.RESTORE_DURABILITY, 
                     Boolean.TRUE
             );
-            System.out.println(String.format(
-                    "[WeaponEffect] DURABILITY_SAVE: Saved! (%.0f%% chance, rolled %.2f)",
-                    saveChance * 100, roll
-            ));
+            EooLogger.debug("DURABILITY_SAVE: Saved! (%.0f%% chance, rolled %.2f)", saveChance * 100, roll);
         }
     }
 }
